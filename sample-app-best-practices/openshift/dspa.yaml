@@ -1,0 +1,47 @@
+apiVersion: datasciencepipelinesapplications.opendatahub.io/v1
+kind: DataSciencePipelinesApplication
+metadata:
+  name: dspa
+  labels:
+    app.kubernetes.io/part-of: openlineage-best-practices
+spec:
+  dspVersion: v2
+  apiServer:
+    deploy: true
+    cacheEnabled: false
+    # This learning environment is accessed only through oc port-forward.
+    # In RHOAI 3.x this field controls creation of the API Server Route.
+    enableOauth: false
+    enableSamplePipeline: false
+    pipelineStore: kubernetes
+  database:
+    disableHealthCheck: false
+    mariaDB:
+      deploy: true
+      pipelineDBName: mlpipeline
+      username: mlpipeline
+      pvcSize: 5Gi
+  objectStorage:
+    disableHealthCheck: false
+    enableExternalRoute: false
+    externalStorage:
+      basePath: artifacts
+      bucket: pipeline-artifacts
+      host: minio.ol-best-practices.svc.cluster.local:9000
+      region: us-east-1
+      scheme: http
+      s3CredentialsSecret:
+        accessKey: AWS_ACCESS_KEY_ID
+        secretKey: AWS_SECRET_ACCESS_KEY
+        secretName: object-store-credentials
+  persistenceAgent:
+    deploy: true
+    numWorkers: 2
+  scheduledWorkflow:
+    deploy: true
+    cronScheduleTimezone: UTC
+  mlmd:
+    deploy: true
+    envoy:
+      deployRoute: false
+  podToPodTLS: true

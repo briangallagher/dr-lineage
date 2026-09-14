@@ -1,0 +1,409 @@
+# Marquez walkthrough API verification
+
+Generated 2026-09-11 against the live local port-forwards for the cluster
+api.bgal-pool-ljt7l.aws.rh-ods.com.
+
+The existing port-forward session was reused because port 5000 was already occupied.
+
+## Setup
+
+Command:
+
+    MARQUEZ=http://127.0.0.1:5000
+    REGISTRY=http://127.0.0.1:8081
+    CLUSTER=api.bgal-pool-ljt7l.aws.rh-ods.com
+    PROJECT=ol-best-practices
+    REGISTRY_NS=dataregistry://$CLUSTER/$PROJECT
+    ASSET_ID=$(curl --silent --fail "$REGISTRY/v1/assets" | jq -r '.[0].assetId')
+
+Explanation: Points the queries at the local Marquez/registry forwards and discovers
+the current registry asset ID.
+
+Output:
+
+    ASSET_ID=01a08bab-6620-75e4-97bd-b71dc2b99cf4
+
+## 1. Namespace discovery
+
+Command:
+
+    curl --silent --fail "$MARQUEZ/api/v1/namespaces" \
+      | jq '{namespaceCount: (.namespaces | length), namespaces: [.namespaces[]? | {name}]}'
+
+Explanation: Confirms Marquez is reachable and lists materialized namespaces.
+
+Output:
+
+    {
+      "namespaceCount": 6,
+      "namespaces": [
+        {"name": "dataregistry://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices"},
+        {"name": "dch-mock://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices"},
+        {"name": "default"},
+        {"name": "kfp://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices"},
+        {"name": "s3://sample-data"},
+        {"name": "spark://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices"}
+      ]
+    }
+
+## 2. RunEvent download
+
+Command:
+
+    curl --silent --fail \
+      "$MARQUEZ/api/v1/events/lineage?limit=10000&sort=asc" \
+      > /tmp/marquez-lineage.json
+
+Explanation: Downloads the RunEvent history used by the subsequent jq queries.
+The raw response was retained at /tmp/marquez-lineage.json during verification.
+
+Summary command:
+
+    jq '{totalCount, returned: (.events | length),
+      first: (.events[0] | {eventType,eventTime,runId:.run.runId,
+      job: (.job.namespace + " / " + .job.name)}),
+      last: (.events[-1] | {eventType,eventTime,runId:.run.runId,
+      job: (.job.namespace + " / " + .job.name)})}' /tmp/marquez-lineage.json
+
+Output:
+
+    {
+      "totalCount": 485,
+      "returned": 483,
+      "first": {
+        "eventType": "FAIL",
+        "eventTime": "2026-09-10T16:32:59.182815Z",
+        "runId": "2ab6d826-7425-43f2-a27d-6956b03bab55",
+        "job": "kfp://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices / sample-app-best-practices"
+      },
+      "last": {
+        "eventType": "START",
+        "eventTime": "2026-09-10T14:14:49.708639Z",
+        "runId": "769dd4fe-40b8-583d-9ec2-ee4cd8442328",
+        "job": "kfp://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices / sample-app-best-practices"
+      }
+    }
+
+Command:
+
+    jq -r '.events[] |
+      [.eventTime, .eventType, .run.runId, .job.namespace, .job.name] |
+      @tsv' /tmp/marquez-lineage.json | sed -n '1,8p'
+
+Explanation: Shows a compact sample of event state, run ID, and job identity.
+
+Output:
+
+    2026-09-10T16:32:59.182815Z  FAIL      2ab6d826-7425-43f2-a27d-6956b03bab55  kfp://.../ol-best-practices  sample-app-best-practices
+    2026-09-10T16:32:38.343315Z  FAIL      01a08c2a-0181-752b-a87c-3eb8a7b47ae2  kfp://.../ol-best-practices  create-mock-embeddings
+    2026-09-10T16:32:38.273945Z  START     01a08c2a-0181-752b-a87c-3eb8a7b47ae2  kfp://.../ol-best-practices  create-mock-embeddings
+    2026-09-10T16:32:18.542728Z  FAIL      01a08c29-b425-7e09-a54e-4b49d55a4f54  kfp://.../ol-best-practices  create-mock-embeddings
+    2026-09-10T16:32:18.469658Z  START     01a08c29-b425-7e09-a54e-4b49d55a4f54  kfp://.../ol-best-practices  create-mock-embeddings
+    2026-09-10T16:31:47.471Z       COMPLETE  01a08c28-bff8-78bd-a01f-cafd3e095f06  spark://.../ol-best-practices  transform_documents
+    2026-09-10T16:31:47.468Z       COMPLETE  01a08c29-31a5-7899-8ee1-a0bb7232aa80  spark://.../ol-best-practices  transform_documents.execute_insert_into_hadoop_fs_relation_command
+    2026-09-10T16:31:47.24Z        RUNNING   01a08c29-31a5-7899-8ee1-a0bb7232aa80  spark://.../ol-best-practices  transform_documents.execute_insert_into_hadoop_fs_relation_command
+
+Verification note: the API returned newest-first even though sort=asc was supplied.
+The guide must not assume that the returned array is chronological.
+
+## 3. Registry metadata
+
+Command:
+
+    curl --silent --fail "$REGISTRY/v1/assets" \
+      | jq 'map({assetId,name,owner,location,lineageStatus})'
+
+Explanation: Reads customer-facing registry metadata for joining to lineage.
+
+Output:
+
+    [
+      {
+        "assetId": "01a08bab-6620-75e4-97bd-b71dc2b99cf4",
+        "name": "Customer documents",
+        "owner": "data-science",
+        "location": "s3://sample-data/raw/documents.csv",
+        "lineageStatus": "DELIVERED"
+      }
+    ]
+
+## 4. Materialized registry dataset and symlink
+
+Commands:
+
+    NS_ENCODED=$(jq -rn --arg v "$REGISTRY_NS" '$v|@uri')
+    NAME_ENCODED=$(jq -rn --arg v "$ASSET_ID" '$v|@uri')
+
+    curl --silent --fail \
+      "$MARQUEZ/api/v1/namespaces/$NS_ENCODED/datasets/$NAME_ENCODED" \
+      | jq '{namespace,name,facets: {documentation: .facets.documentation,
+      ownership: .facets.ownership,
+      lifecycleStateChange: .facets.lifecycleStateChange,
+      symlinks: .facets.symlinks, datasetType: .facets.datasetType}}'
+
+Explanation: Reads the logical registry dataset and the useful DatasetEvent facets.
+
+Output:
+
+    {
+      "namespace": "dataregistry://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices",
+      "name": "01a08bab-6620-75e4-97bd-b71dc2b99cf4",
+      "facets": {
+        "documentation": {
+          "description": "Mutable CSV source with no durable row or content identifier"
+        },
+        "ownership": {"owners": [{"name": "data-science", "type": "MAINTAINER"}]},
+        "lifecycleStateChange": {"lifecycleStateChange": "CREATE"},
+        "symlinks": {
+          "identifiers": [
+            {"name": "raw/documents.csv", "type": "OBJECT", "namespace": "s3://sample-data"}
+          ]
+        },
+        "datasetType": {"datasetType": "FILE"}
+      }
+    }
+
+Command:
+
+    curl --silent --fail \
+      "$MARQUEZ/api/v1/namespaces/$NS_ENCODED/datasets/$NAME_ENCODED" \
+      | jq '.facets.symlinks.identifiers'
+
+Explanation: Extracts the logical-to-physical alias.
+
+Output:
+
+    [
+      {
+        "name": "raw/documents.csv",
+        "type": "OBJECT",
+        "namespace": "s3://sample-data"
+      }
+    ]
+
+## 5. Event state and correlation
+
+Command:
+
+    jq '[.events[].eventType] | group_by(.) |
+      map({eventType: .[0], count: length})' /tmp/marquez-lineage.json
+
+Explanation: Counts lifecycle event states in the retained RunEvent history.
+
+Output:
+
+    [
+      {"eventType": "COMPLETE", "count": 168},
+      {"eventType": "FAIL", "count": 31},
+      {"eventType": "RUNNING", "count": 106},
+      {"eventType": "START", "count": 178}
+    ]
+
+Command:
+
+    jq '{failedOrAborted: [.events[] |
+      select(.eventType == "FAIL" or .eventType == "ABORT")] | length}' \
+      /tmp/marquez-lineage.json
+
+Explanation: Counts failed or aborted attempts.
+
+Output:
+
+    {"failedOrAborted": 31}
+
+Command:
+
+    jq '{withParent: [.events[] |
+      select(.run.facets.parent != null)] | length}' /tmp/marquez-lineage.json
+
+Explanation: Counts events with a parent execution relationship.
+
+Output:
+
+    {"withParent": 433}
+
+## 6. Raw-source consumers
+
+Command:
+
+    RAW_NS=s3://sample-data
+    RAW_NAME=raw/documents.csv
+
+    jq --arg ns "$RAW_NS" --arg name "$RAW_NAME" '
+      .events[]
+      | select(any(.inputs[]?; .namespace == $ns and .name == $name))
+      | {eventTime,eventType,
+         job: (.job.namespace + " / " + .job.name),
+         runId: .run.runId,
+         outputs: [.outputs[]? | .namespace + " / " + .name]}' \
+      /tmp/marquez-lineage.json
+
+Explanation: Finds RunEvents that report consuming the raw S3 dataset.
+
+Output sample:
+
+    {
+      "eventTime": "2026-09-10T16:30:56.362481Z",
+      "eventType": "COMPLETE",
+      "job": "dch-mock://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices / read-and-stage",
+      "runId": "01a08c28-7222-757c-be3f-9f84226ef4cf",
+      "outputs": [
+        "s3://sample-data / staging/01a08bab-6620-75e4-97bd-b71dc2b99cf4/documents.csv"
+      ]
+    }
+
+The same query also returned the START event for this run and additional historical
+read-and-stage runs. The complete output was intentionally not duplicated here.
+
+## 7. Parameters and output metadata
+
+Command:
+
+    jq '.events[]
+      | select(.run.facets.executionParameters != null)
+      | {runId: .run.runId,
+         job: (.job.namespace + " / " + .job.name),
+         parameters: .run.facets.executionParameters.parameters}' \
+      /tmp/marquez-lineage.json
+
+Explanation: Reads embedded asset, algorithm, dimensions, and mock/real parameters.
+
+Output sample:
+
+    {
+      "runId": "01a08c2a-0181-752b-a87c-3eb8a7b47ae2",
+      "job": "kfp://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices / create-mock-embeddings",
+      "parameters": [
+        {"key": "algorithm", "value": "sha256-demo"},
+        {"key": "assetId", "value": "01a08bab-6620-75e4-97bd-b71dc2b99cf4"},
+        {"key": "dimensions", "value": "8"},
+        {"key": "mock", "value": "true"}
+      ]
+    }
+
+Command:
+
+    jq '.events[] | .outputs[]?
+      | select(.facets.schema != null or .facets.columnLineage != null)
+      | {dataset: (.namespace + " / " + .name),
+         schema: .facets.schema,
+         statistics: .outputFacets.outputStatistics}' \
+      /tmp/marquez-lineage.json
+
+Explanation: Reads declared output schema and statistics.
+
+Output sample:
+
+    {
+      "dataset": "s3://sample-data / transformed/01a08bab-6620-75e4-97bd-b71dc2b99cf4/01a08c28-bff8-78bd-a01f-cafd3e095f06",
+      "schema": {
+        "fields": [
+          {"name": "title", "type": "string"},
+          {"name": "category", "type": "string"},
+          {"name": "normalized_text", "type": "string"},
+          {"name": "word_count", "type": "integer"}
+        ]
+      },
+      "statistics": {"size": 1975, "rowCount": 4, "fileCount": 1}
+    }
+
+## 8. Registry lookup correction
+
+Command from the document:
+
+    curl --silent --fail "$REGISTRY/$ASSET_ID" \
+      | jq '{assetId,name,owner,description,location,lineageStatus}'
+
+Explanation: This was intended to read the registry record by ID, but the path is
+missing /v1/assets/.
+
+Output:
+
+    curl: (22) The requested URL returned error: 404
+
+Corrected command:
+
+    curl --silent --fail "$REGISTRY/v1/assets/$ASSET_ID" \
+      | jq '{assetId,name,owner,description,location,lineageStatus}'
+
+Explanation: Uses the actual registry API route.
+
+Output:
+
+    {
+      "assetId": "01a08bab-6620-75e4-97bd-b71dc2b99cf4",
+      "name": "Customer documents",
+      "owner": "data-science",
+      "description": "Mutable CSV source with no durable row or content identifier",
+      "location": "s3://sample-data/raw/documents.csv",
+      "lineageStatus": "DELIVERED"
+    }
+
+## 9. Distinct job identities
+
+Command:
+
+    jq -r '.events[] | [.job.namespace, .job.name] | @tsv' \
+      /tmp/marquez-lineage.json | sort -u
+
+Explanation: Lists stable component identities represented in Marquez.
+
+Output:
+
+    dch-mock://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices  read-and-stage
+    kfp://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices  create-mock-embeddings
+    kfp://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices  sample-app-best-practices
+    spark://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices transform_documents
+    spark://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices transform_documents.collect_limit
+    spark://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices transform_documents.deserialize_to_object
+    spark://api.bgal-pool-ljt7l.aws.rh-ods.com/ol-best-practices transform_documents.execute_insert_into_hadoop_fs_relation_command
+
+## Verification summary
+
+Verified:
+
+- Marquez API is reachable.
+- Six namespaces are materialized.
+- The API reports 485 total RunEvents and returned 483 for the query.
+- The registry asset is delivered.
+- UUID 01a08bab-6620-75e4-97bd-b71dc2b99cf4 resolves to Customer documents.
+- Registry ownership is data-science.
+- The symlink points to s3://sample-data/raw/documents.csv.
+- COMPLETE, FAIL, RUNNING, and START events are present.
+- Parent correlation is present.
+- The raw source is consumed by read-and-stage.
+- Spark schema/statistics and embedding parameters are present.
+
+Corrections required in the walkthrough:
+
+1. Registry lookup must use /v1/assets/<asset-id>.
+2. Do not describe the returned events array as chronological when using sort=asc;
+   this live Marquez response was newest-first.
+3. Marquez contains technical Spark jobs in addition to the logical application stages.
+
+## 10. Historical UUID from the original Marquez URL
+
+Command from the walkthrough's original example:
+
+    OLD_ASSET_ID=01a08ba1-af04-7394-b90a-cc1557dc8b30
+    curl --silent --show-error --fail \
+      "$MARQUEZ/api/v1/namespaces/$NS_ENCODED/datasets/$OLD_NAME_ENCODED" \
+      | jq '{namespace,name,facets}'
+
+Output: Marquez still returns the dataset entity and its symlink to
+s3://sample-data/raw/documents.csv.
+
+Command:
+
+    curl --silent --show-error --fail \
+      "$REGISTRY/v1/assets/$OLD_ASSET_ID" \
+      | jq '{assetId,name,owner,location,lineageStatus}'
+
+Output:
+
+    curl: (22) The requested URL returned error: 404
+
+The current registry asset discovered from GET /v1/assets is
+01a08bab-6620-75e4-97bd-b71dc2b99cf4. Therefore the original UUID is historical
+Marquez lineage, not the current registry record. The walkthrough now discovers
+the current asset dynamically.

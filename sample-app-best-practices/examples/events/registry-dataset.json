@@ -1,0 +1,22 @@
+{
+  "eventTime": "2026-09-10T09:00:00Z",
+  "producer": "https://github.com/briangallagher/dr-lineage/tree/main/sample-app-best-practices#v0.1.0",
+  "schemaURL": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/DatasetEvent",
+  "dataset": {
+    "namespace": "dataregistry://demo-cluster/ol-best-practices",
+    "name": "01994c8e-6f80-7a31-a427-4a8aa7061f51",
+    "facets": {
+      "symlinks": {
+        "_producer": "https://github.com/briangallagher/dr-lineage/tree/main/sample-app-best-practices#v0.1.0",
+        "_schemaURL": "https://openlineage.io/spec/facets/1-0-1/SymlinksDatasetFacet.json#/$defs/SymlinksDatasetFacet",
+        "identifiers": [
+          {
+            "namespace": "s3://sample-data",
+            "name": "raw/documents.csv",
+            "type": "OBJECT"
+          }
+        ]
+      }
+    }
+  }
+}

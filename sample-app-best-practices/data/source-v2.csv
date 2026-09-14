@@ -1,0 +1,6 @@
+title,category,text
+OpenLineage introduction,lineage,OpenLineage reports metadata from instrumented producers
+Data Registry asset,registry,A registry UUID identifies metadata but not immutable source bytes
+Spark transformation,processing,Spark creates a separately identified transformed dataset
+Bypass update,limitation,This row appeared through an uninstrumented direct object overwrite
+

@@ -1,0 +1,5 @@
+See the application running
+
+Cross Reference the sample application against what Feast is delivering 
+
+What would be involved in a component such as KFP or DCH implementing OL

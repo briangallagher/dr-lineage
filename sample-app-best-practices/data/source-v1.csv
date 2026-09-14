@@ -1,0 +1,5 @@
+title,category,text
+OpenLineage introduction,lineage,OpenLineage records metadata about data processing jobs
+Data Registry asset,registry,A registry record gives a logical identity and storage pointer
+Spark transformation,processing,Spark reads staged data and writes normalized parquet output
+

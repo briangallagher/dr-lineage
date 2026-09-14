@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: registry
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: registry-data-writer
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [registry-data]
+    verbs: [get, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: registry-data-writer
+subjects:
+  - kind: ServiceAccount
+    name: registry
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: registry-data-writer
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pipeline-spark-runner
+rules:
+  - apiGroups: [sparkoperator.k8s.io]
+    resources: [sparkapplications, sparkapplications/status]
+    verbs: [create, get, list, watch, delete]
+  - apiGroups: [""]
+    resources: [pods, pods/log, services, configmaps, persistentvolumeclaims]
+    verbs: [create, get, list, watch, update, patch, delete, deletecollection]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pipeline-spark-runner
+subjects:
+  - kind: ServiceAccount
+    name: pipeline-runner-dspa
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pipeline-spark-runner

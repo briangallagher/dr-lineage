@@ -1,0 +1,46 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: lineage-demo-app
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: lineage-demo-spark
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: lineage-demo-app
+spec:
+  source:
+    type: Binary
+    binary: {}
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile.app
+  output:
+    to:
+      kind: ImageStreamTag
+      name: lineage-demo-app:latest
+  triggers: []
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: lineage-demo-spark
+spec:
+  source:
+    type: Binary
+    binary: {}
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: spark/Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: lineage-demo-spark:latest
+  triggers: []
+
