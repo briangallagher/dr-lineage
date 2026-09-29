@@ -88,6 +88,9 @@ The MinIO client seed Job is created only after MinIO is ready. It sets
 `MC_CONFIG_DIR=/tmp/.mc` because OpenShift runs the image with an arbitrary UID that
 cannot write the image's default `/.mc` directory. Failed attempts use
 `restartPolicy: Never` so their logs remain available.
+The seed Job pins the MinIO client image by Docker Hub digest. The earlier
+`quay.io/minio/mc` tag returned `unauthorized` during a 2026-09-29 redeploy,
+so the registry and exact image content are now explicit.
 
 The default-deny ingress policy includes one cross-namespace exception: pods in
 `redhat-ods-applications` may reach only MinIO TCP port 9000. The RHOAI Pipelines
