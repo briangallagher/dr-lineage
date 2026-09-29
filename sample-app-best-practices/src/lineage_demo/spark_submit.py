@@ -50,7 +50,9 @@ def build_spark_application(
     bucket, _ = parse_s3_uri(staged_uri)
     output = transformed_identity(bucket, asset_id, run_id)
     output_uri = s3_uri(output)
-    application_name = f"transform-{run_id[:8]}"
+    # UUIDv7 starts with a timestamp: its first eight hex digits can repeat
+    # across KFP retry attempts. Use the entire ID for a unique DNS label.
+    application_name = f"transform-{run_id.replace('-', '')}"
     root_id = root_run_id(pipeline_job_id)
     args = ["--input-uri", staged_uri, "--output-uri", output_uri]
     if fail:

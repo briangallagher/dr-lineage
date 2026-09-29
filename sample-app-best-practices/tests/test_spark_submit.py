@@ -36,3 +36,26 @@ def test_spark_application_uses_native_listener_and_exact_parent() -> None:
     assert result.output_uri == (
         "s3://sample-data/transformed/asset/01994c99-64b7-72ac-a9c3-c35330905e77"
     )
+
+
+def test_spark_application_names_distinguish_uuid7_retry_attempts() -> None:
+    settings = Settings(cluster_name="cluster", project_namespace="project")
+    run_ids = (
+        "01994c99-64b7-72ac-a9c3-c35330905e77",
+        "01994c99-64b8-7e51-9d20-17a5288bb74e",
+    )
+    names = set()
+    for run_id in run_ids:
+        manifest, result = build_spark_application(
+            settings=settings,
+            asset_id="asset",
+            staged_uri="s3://sample-data/staging/asset/ingest/documents.csv",
+            pipeline_job_id="3a6e0886-40b3-4cee-bddd-c983fd693155",
+            spark_image="registry/spark:sha",
+            fail=True,
+            run_id=run_id,
+        )
+        assert result.application_name == manifest["metadata"]["name"]
+        assert len(result.application_name) <= 63
+        names.add(result.application_name)
+    assert len(names) == len(run_ids)
