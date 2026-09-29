@@ -91,6 +91,9 @@ finishes. Failed attempts use `restartPolicy: Never` so their logs remain
 available. Both `quay.io/minio/mc` and `docker.io/minio/mc` rejected the seed
 image during 2026-09-29 redeploy attempts; the new Job no longer pulls a
 separate client image.
+The pinned MinIO release also requires `Content-MD5` on lifecycle updates.
+The seed client adds that header for the lifecycle request; this is scoped to
+the fixture and should be revisited when the SDK or object store changes.
 
 The default-deny ingress policy includes one cross-namespace exception: pods in
 `redhat-ods-applications` may reach only MinIO TCP port 9000. The RHOAI Pipelines

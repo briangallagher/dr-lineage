@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 from pathlib import Path
 
+from botocore.awsrequest import AWSRequest
 from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 
@@ -14,6 +17,16 @@ from lineage_demo.storage import s3_client
 
 def _error_code(error: ClientError) -> str:
     return str(error.response.get("Error", {}).get("Code", ""))
+
+
+def add_lifecycle_content_md5(request: AWSRequest, **_: object) -> None:
+    """Supply the S3 REST header required by the pinned MinIO lifecycle API."""
+
+    body = request.body
+    if not isinstance(body, bytes):
+        raise TypeError("Expected a byte body for the lifecycle request")
+    digest = hashlib.md5(body, usedforsecurity=False).digest()
+    request.headers["Content-MD5"] = base64.b64encode(digest).decode("ascii")
 
 
 def ensure_bucket(client: BaseClient, bucket: str) -> None:
@@ -57,7 +70,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--file", type=Path, required=True)
     args = parser.parse_args()
-    seed_source(s3_client(get_settings()), args.file)
+    client = s3_client(get_settings())
+    client.meta.events.register(
+        "before-sign.s3.PutBucketLifecycleConfiguration", add_lifecycle_content_md5
+    )
+    seed_source(client, args.file)
     print("Seeded sample-data/raw/documents.csv and pipeline-artifacts")
 
 
