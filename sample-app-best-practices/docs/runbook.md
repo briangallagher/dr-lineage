@@ -75,22 +75,22 @@ Deployment performs these operations:
 3. Creates cluster-specific application configuration.
 4. Deploys MinIO, persistent Marquez/PostgreSQL, the registry stub, DSPA v2, RBAC,
    image builds, and NetworkPolicies.
-5. Creates `sample-data` and `pipeline-artifacts` buckets.
+5. Builds the pinned application image and uses it to create the `sample-data` and
+   `pipeline-artifacts` buckets.
 6. Uploads `source-v1.csv` to `s3://sample-data/raw/documents.csv` with bucket versioning
    suspended.
 7. Adds a seven-day lifecycle rule to `staging/`.
-8. Builds the application and Spark images in OpenShift, tags them with the repository
+8. Builds the Spark image, tags both images with the repository
    SHA or a unique dirty-worktree tag, and compiles KFP against those immutable tags.
    The dirty-worktree check includes untracked files, preventing a changed binary build
    from silently reusing the current commit tag.
 
-The MinIO client seed Job is created only after MinIO is ready. It sets
-`MC_CONFIG_DIR=/tmp/.mc` because OpenShift runs the image with an arbitrary UID that
-cannot write the image's default `/.mc` directory. Failed attempts use
-`restartPolicy: Never` so their logs remain available.
-The seed Job pins the MinIO client image by Docker Hub digest. The earlier
-`quay.io/minio/mc` tag returned `unauthorized` during a 2026-09-29 redeploy,
-so the registry and exact image content are now explicit.
+The seed Job runs the application's pinned image and uses its locked `boto3`
+dependency. It starts only after MinIO is ready and the application build
+finishes. Failed attempts use `restartPolicy: Never` so their logs remain
+available. Both `quay.io/minio/mc` and `docker.io/minio/mc` rejected the seed
+image during 2026-09-29 redeploy attempts; the new Job no longer pulls a
+separate client image.
 
 The default-deny ingress policy includes one cross-namespace exception: pods in
 `redhat-ods-applications` may reach only MinIO TCP port 9000. The RHOAI Pipelines

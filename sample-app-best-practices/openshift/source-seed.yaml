@@ -14,23 +14,24 @@ spec:
     spec:
       restartPolicy: Never
       containers:
-        - name: mc
-          image: docker.io/minio/mc@sha256:993e8c454a7ec632923f7e3e61adf1d473261da6354cefd641aedd33a2cfe112
-          command: [/bin/sh, -eu, -c]
-          args:
-            - |
-              mc alias set local http://minio:9000 "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY"
-              mc mb --ignore-existing local/sample-data
-              mc mb --ignore-existing local/pipeline-artifacts
-              mc version suspend local/sample-data || true
-              mc cp /seed/source-v1.csv local/sample-data/raw/documents.csv
-              mc ilm rule add --expire-days 7 --prefix staging/ local/sample-data || true
+        - name: seed
+          image: image-registry.openshift-image-registry.svc:5000/ol-best-practices/lineage-demo-app:latest
+          imagePullPolicy: Always
+          command: [python, -m, lineage_demo.seed]
+          args: [--file, /seed/source-v1.csv]
           envFrom:
             - secretRef:
                 name: object-store-credentials
           env:
-            - name: MC_CONFIG_DIR
-              value: /tmp/.mc
+            - name: S3_ENDPOINT
+              value: http://minio:9000
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
           volumeMounts:
             - name: source-data
               mountPath: /seed

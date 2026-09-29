@@ -48,11 +48,25 @@ oc create configmap application-config -n "$NAMESPACE" \
   --from-literal=REGISTRY_CONFIGMAP_NAME=registry-data \
   --dry-run=client -o yaml | oc apply -f - >/dev/null
 
-oc delete job object-store-seed -n "$NAMESPACE" --ignore-not-found >/dev/null
 oc apply -k "$APP_ROOT/openshift"
 
 oc rollout status deployment/minio -n "$NAMESPACE" --timeout=5m
-oc apply -f "$APP_ROOT/openshift/source-seed.yaml" -n "$NAMESPACE"
+oc start-build lineage-demo-app -n "$NAMESPACE" --from-dir="$APP_ROOT" --follow --wait
+
+if [[ -z "$(git -C "$APP_ROOT/.." status --porcelain -- "$APP_ROOT")" ]]; then
+  image_tag="$(git -C "$APP_ROOT/.." rev-parse --short=12 HEAD)"
+else
+  image_tag="dev-$(date -u +%Y%m%d%H%M%S)"
+fi
+oc tag -n "$NAMESPACE" lineage-demo-app:latest "lineage-demo-app:$image_tag"
+
+registry="image-registry.openshift-image-registry.svc:5000/$NAMESPACE"
+app_image="$registry/lineage-demo-app:$image_tag"
+spark_image="$registry/lineage-demo-spark:$image_tag"
+
+oc delete job object-store-seed -n "$NAMESPACE" --ignore-not-found >/dev/null
+oc set image -f "$APP_ROOT/openshift/source-seed.yaml" \
+  "seed=$app_image" --local -o yaml | oc apply -n "$NAMESPACE" -f -
 wait_job_complete object-store-seed "$NAMESPACE"
 oc rollout status deployment/marquez -n "$NAMESPACE" --timeout=10m
 oc wait dspa/dspa -n "$NAMESPACE" --for=condition=Ready --timeout=10m
@@ -62,20 +76,9 @@ oc wait dspa/dspa -n "$NAMESPACE" --for=condition=Ready --timeout=10m
 oc delete route ds-pipeline-dspa ds-pipeline-md-dspa -n "$NAMESPACE" \
   --ignore-not-found >/dev/null
 
-oc start-build lineage-demo-app -n "$NAMESPACE" --from-dir="$APP_ROOT" --follow --wait
 oc start-build lineage-demo-spark -n "$NAMESPACE" --from-dir="$APP_ROOT" --follow --wait
-
-if [[ -z "$(git -C "$APP_ROOT/.." status --porcelain -- "$APP_ROOT")" ]]; then
-  image_tag="$(git -C "$APP_ROOT/.." rev-parse --short=12 HEAD)"
-else
-  image_tag="dev-$(date -u +%Y%m%d%H%M%S)"
-fi
-oc tag -n "$NAMESPACE" lineage-demo-app:latest "lineage-demo-app:$image_tag"
 oc tag -n "$NAMESPACE" lineage-demo-spark:latest "lineage-demo-spark:$image_tag"
 
-registry="image-registry.openshift-image-registry.svc:5000/$NAMESPACE"
-app_image="$registry/lineage-demo-app:$image_tag"
-spark_image="$registry/lineage-demo-spark:$image_tag"
 oc set image -n "$NAMESPACE" deployment/registry "registry=$app_image"
 oc rollout status deployment/registry -n "$NAMESPACE" --timeout=5m
 
