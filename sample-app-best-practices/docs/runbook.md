@@ -158,6 +158,11 @@ lifecycles, parents, aliases, Spark events, or exact dataset handoffs are absent
 Marquez retains older suites, so verification selects child events by the KFP roots in
 this report rather than mistaking retained history for the current run.
 
+The local scenario runner passes the temporary OpenShift token and S3 credentials
+through stdin, so those values do not appear in process arguments or the scenario
+report. This remains a test harness for the isolated POC namespace; a product
+workflow should use managed workload identities and secret references.
+
 ## 8. Open the internal services
 
 Run this in a separate terminal:

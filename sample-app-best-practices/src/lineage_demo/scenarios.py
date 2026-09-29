@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 import boto3
 import httpx
@@ -35,6 +36,18 @@ def _kfp_client(endpoint: str, token: str, namespace: str) -> kfp.Client:
         namespace=namespace,
         verify_ssl=False,
     )
+
+
+def read_credentials(stream: TextIO) -> tuple[str, str, str]:
+    """Read local test credentials from stdin, keeping them out of argv and reports."""
+
+    values: list[str] = []
+    for label in ("KFP token", "S3 access key", "S3 secret key"):
+        value = stream.readline().rstrip("\n")
+        if not value:
+            raise ValueError(f"Missing {label} on credentials stdin")
+        values.append(value)
+    return values[0], values[1], values[2]
 
 
 def _state(run: Any) -> str:
@@ -189,18 +202,20 @@ def execute(args: argparse.Namespace) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--kfp-endpoint", required=True)
-    parser.add_argument("--kfp-token", default="")
+    parser.add_argument("--credentials-stdin", action="store_true", required=True)
     parser.add_argument("--registry-url", required=True)
     parser.add_argument("--marquez-url", required=True)
     parser.add_argument("--s3-endpoint", required=True)
-    parser.add_argument("--access-key", required=True)
-    parser.add_argument("--secret-key", required=True)
     parser.add_argument("--pipeline", required=True)
     parser.add_argument("--source-v2", required=True)
     parser.add_argument("--namespace", default="ol-best-practices")
     parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--output", default="build/scenario-results.json")
     args = parser.parse_args()
+    try:
+        args.kfp_token, args.access_key, args.secret_key = read_credentials(sys.stdin)
+    except ValueError as error:
+        parser.error(str(error))
     print(json.dumps(execute(args), indent=2))
 
 
