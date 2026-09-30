@@ -1,0 +1,28 @@
+# Cluster-scoped singleton for the scenario-b lineage trial. SQLite/RWO is
+# intentionally trial-only; use a remote SQL backend before adding replicas.
+apiVersion: mlflow.opendatahub.io/v1
+kind: MLflow
+metadata:
+  name: mlflow
+spec:
+  replicas: 1
+  storage:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: gp3-csi
+  backendStoreUri: sqlite:////mlflow/mlflow.db
+  registryStoreUri: sqlite:////mlflow/mlflow.db
+  serveArtifacts: true
+  artifactsDestination: s3://lineage-mlflow-artifacts-scenario-b/artifacts
+  envFrom:
+    - secretRef:
+        name: lineage-mlflow-s3-trial
+  env:
+    - name: MLFLOW_S3_ENDPOINT_URL
+      value: http://minio-service.minio.svc:9000
+  workspaceLabelSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: scenario-b

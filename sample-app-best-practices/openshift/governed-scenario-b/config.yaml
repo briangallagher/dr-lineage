@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lineage-governed-config
+  namespace: scenario-b
+data:
+  PROJECT_NAMESPACE: scenario-b
+  CLUSTER_NAME: api.bgal-pool-ljt7l.aws.rh-ods.com
+  MARQUEZ_URL: http://marquez.ol-best-practices.svc:80
+  DATA_REGISTRY_URL: https://data-registry-api-kube-rbac-proxy.scenario-b.svc:8443
+  MLFLOW_TRACKING_URI: https://mlflow.redhat-ods-applications.svc:8443/mlflow
+  MLFLOW_TRACKING_AUTH: kubernetes-namespaced
+  MLFLOW_TRACKING_SERVER_CERT_PATH: /var/run/data-registry-ca/service-ca.crt

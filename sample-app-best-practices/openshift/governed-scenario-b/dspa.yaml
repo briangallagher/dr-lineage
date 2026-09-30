@@ -1,0 +1,48 @@
+# Slice 2 trial only. Uses the existing Data Registry MinIO service and the
+# project-local Data Connection Secret; it does not create a public Route.
+apiVersion: datasciencepipelinesapplications.opendatahub.io/v1
+kind: DataSciencePipelinesApplication
+metadata:
+  name: dspa
+  namespace: scenario-b
+  labels:
+    app.kubernetes.io/part-of: lineage-governed-trial
+spec:
+  dspVersion: v2
+  apiServer:
+    deploy: true
+    cacheEnabled: false
+    enableOauth: false
+    enableSamplePipeline: false
+    pipelineStore: kubernetes
+  database:
+    disableHealthCheck: false
+    mariaDB:
+      deploy: true
+      pipelineDBName: mlpipeline
+      username: mlpipeline
+      pvcSize: 5Gi
+  objectStorage:
+    disableHealthCheck: false
+    enableExternalRoute: false
+    externalStorage:
+      basePath: artifacts
+      bucket: lineage-kfp-artifacts-scenario-b
+      host: minio-service.minio.svc:9000
+      region: us-east-1
+      scheme: http
+      s3CredentialsSecret:
+        accessKey: AWS_ACCESS_KEY_ID
+        secretKey: AWS_SECRET_ACCESS_KEY
+        secretName: dataconnection-minio-iso-forms
+  persistenceAgent:
+    deploy: true
+    numWorkers: 2
+  scheduledWorkflow:
+    deploy: true
+    cronScheduleTimezone: UTC
+  mlmd:
+    deploy: true
+    envoy:
+      deployRoute: false
+  podToPodTLS: true

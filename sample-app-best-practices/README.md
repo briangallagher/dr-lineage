@@ -47,6 +47,9 @@ deliberately small mocks. OpenLineage 1.53.0 and Marquez 0.50.0 are pinned.
   context propagation and native event-production requirements.
 - [Jupyter notebook operational lineage](docs/jupyter-notebook-operational-lineage.md):
   notebook activities, DCH/Spark child runs, model/embedding work, and vector stores.
+- [Governed asset to model local adapter](docs/governed-model-local.md): separate
+  Slice 2 KFP path, live Data Registry contract observations, MLflow artifact
+  linkage, and the remaining cluster prerequisites.
 
 ## Prerequisites
 
@@ -96,11 +99,16 @@ uv run python -m pytest
 
 ## Important claim boundary
 
-This sample demonstrates **linked operational lineage**. It can show that an
+The deployed Slice 1 sample demonstrates **linked operational lineage**. It can show that an
 instrumented run reported using a registered asset and where derived artifacts came
 from. It cannot prove the exact bytes at a mutable source URI, observe direct storage
 writes, or provide audit-grade reproducibility. Those distinctions are central to the
 design rather than treated as implementation gaps.
+
+The separate Slice 2 adapter hashes the Parquet bytes it reads and reports
+`OBSERVED` evidence. It has passed local tests; its same-project KFP service,
+access rules, and app image are staged in `scenario-b`, but no governed run has
+been verified on the cluster.
 
 ## Cleanup
 

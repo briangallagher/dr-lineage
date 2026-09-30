@@ -1,0 +1,17 @@
+# The Data Registry kube-rbac-proxy authorizes the GET generic-table path via
+# the project-scoped `tables` pseudo-resource in dataregistry.opendatahub.io.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: lineage-governed-registry-view
+  namespace: scenario-b
+  labels:
+    app.kubernetes.io/part-of: lineage-governed-trial
+subjects:
+  - kind: ServiceAccount
+    name: pipeline-runner-dspa
+    namespace: scenario-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dataregistry-view

@@ -13,6 +13,7 @@ import uvicorn
 
 from lineage_demo.config import get_settings
 from lineage_demo.events import LineageEmitter
+from lineage_demo.governed_model import AssetReference, run_governed_training
 from lineage_demo.identities import canonical_s3_dataset, root_run_id
 from lineage_demo.lifecycle import finish_root, root_job_facets, start_root
 from lineage_demo.processing import (
@@ -43,11 +44,34 @@ def _register(subparsers: argparse._SubParsersAction) -> None:
     root_start = subparsers.add_parser("root-start")
     root_start.add_argument("--pipeline-job-id", default=os.environ.get("KFP_RUN_ID"))
     root_start.add_argument("--root-run-id-path", required=True)
+    root_start.add_argument("--job-name", default=ROOT_JOB_NAME)
 
     root_end = subparsers.add_parser("root-end")
     root_end.add_argument("--pipeline-job-id", default=os.environ.get("KFP_RUN_ID"))
     root_end.add_argument("--state", required=True)
     root_end.add_argument("--error", default="")
+    root_end.add_argument("--job-name", default=ROOT_JOB_NAME)
+
+    governed = subparsers.add_parser("train-governed")
+    governed.add_argument("--project", required=True)
+    governed.add_argument("--collection", required=True)
+    governed.add_argument("--asset-name", required=True)
+    governed.add_argument("--expected-asset-uuid", required=True)
+    governed.add_argument("--source-secret-name", required=True)
+    governed.add_argument("--source-bucket", default=os.environ.get("SOURCE_BUCKET", ""))
+    governed.add_argument("--target-column", required=True)
+    governed.add_argument("--registry-url", default=os.environ.get("DATA_REGISTRY_URL", ""))
+    governed.add_argument(
+        "--registry-ca-file",
+        default=os.environ.get("DATA_REGISTRY_CA", "/var/run/data-registry-ca/service-ca.crt"),
+    )
+    governed.add_argument(
+        "--token-file", default="/var/run/secrets/kubernetes.io/serviceaccount/token"
+    )
+    governed.add_argument("--tracking-uri", default=os.environ.get("MLFLOW_TRACKING_URI", ""))
+    governed.add_argument("--pipeline-job-id", default=os.environ.get("KFP_RUN_ID"))
+    governed.add_argument("--pod-name", default=os.environ.get("KFP_POD_NAME"))
+    governed.add_argument("--result-path", required=True)
 
     ingest_parser = subparsers.add_parser("ingest")
     ingest_parser.add_argument("--asset-id", required=True)
@@ -110,10 +134,29 @@ def main() -> None:
             port=args.port,
         )
     elif args.command == "root-start":
-        run_id = start_root(settings, args.pipeline_job_id)
+        run_id = start_root(settings, args.pipeline_job_id, job_name=args.job_name)
         _write(args.root_run_id_path, run_id)
     elif args.command == "root-end":
-        finish_root(settings, args.pipeline_job_id, args.state, args.error)
+        finish_root(settings, args.pipeline_job_id, args.state, args.error, job_name=args.job_name)
+    elif args.command == "train-governed":
+        if not args.registry_url or not args.tracking_uri:
+            parser.error("DATA_REGISTRY_URL and MLFLOW_TRACKING_URI are required")
+        result = run_governed_training(
+            settings=settings,
+            registry_url=args.registry_url,
+            registry_ca_file=args.registry_ca_file,
+            token_file=args.token_file,
+            reference=AssetReference(
+                args.project, args.collection, args.asset_name, args.expected_asset_uuid
+            ),
+            source_secret_name=args.source_secret_name,
+            source_bucket=args.source_bucket,
+            target_column=args.target_column,
+            tracking_uri=args.tracking_uri,
+            pipeline_job_id=args.pipeline_job_id,
+            pod_name=args.pod_name,
+        )
+        _write(args.result_path, json.dumps(result, sort_keys=True))
     elif args.command == "ingest":
         staged_uri, run_id = ingest(
             settings=settings,

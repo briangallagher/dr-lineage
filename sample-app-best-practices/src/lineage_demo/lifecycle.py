@@ -11,17 +11,21 @@ from lineage_demo.identities import root_run_id
 from lineage_demo.processing import ROOT_JOB_NAME
 
 
-def root_job_facets() -> dict:
+def root_job_facets(job_name: str = ROOT_JOB_NAME) -> dict:
+    description = (
+        "Orchestrates a governed Parquet asset into a tracked baseline model."
+        if job_name == "governed-asset-to-model"
+        else "Orchestrates registry ingestion, Spark transformation, and mock embeddings."
+    )
     return {
         "jobType": facets.job_type("KFP", "DAG"),
-        "documentation": facets.job_documentation(
-            "Orchestrates registry ingestion, Spark transformation, and mock embeddings."
-        ),
+        "documentation": facets.job_documentation(description),
         "ownership": facets.ownership("rhoai-data-platform"),
-        "tags": facets.tags({"application": ROOT_JOB_NAME, "environment": "demo"}),
+        "tags": facets.tags({"application": job_name, "environment": "demo"}),
         "sourceCodeLocation": facets.source_code_location(
             facets.REPOSITORY,
-            "sample-app-best-practices/pipeline/pipeline.py",
+            "sample-app-best-practices/pipeline/"
+            + ("governed_pipeline.py" if job_name == "governed-asset-to-model" else "pipeline.py"),
         ),
     }
 
@@ -30,14 +34,15 @@ def start_root(
     settings: Settings,
     pipeline_job_id: str,
     emitter: LineageEmitter | None = None,
+    job_name: str = ROOT_JOB_NAME,
 ) -> str:
     run_id = root_run_id(pipeline_job_id)
     (emitter or LineageEmitter(settings)).run_event(
         state=RunState.START,
         run_id=run_id,
         job_namespace=settings.kfp_namespace,
-        job_name=ROOT_JOB_NAME,
-        job_facets=root_job_facets(),
+        job_name=job_name,
+        job_facets=root_job_facets(job_name),
         run_facets={
             "processing_engine": facets.processing_engine("Kubeflow Pipelines", "2.16.1", "1.53.0")
         },
@@ -51,6 +56,7 @@ def finish_root(
     final_state: str,
     error: str = "",
     emitter: LineageEmitter | None = None,
+    job_name: str = ROOT_JOB_NAME,
 ) -> str:
     state_mapping = {
         "SUCCEEDED": RunState.COMPLETE,
@@ -72,8 +78,8 @@ def finish_root(
         state=state,
         run_id=run_id,
         job_namespace=settings.kfp_namespace,
-        job_name=ROOT_JOB_NAME,
-        job_facets=root_job_facets(),
+        job_name=job_name,
+        job_facets=root_job_facets(job_name),
         run_facets=run_facets,
     )
     return run_id

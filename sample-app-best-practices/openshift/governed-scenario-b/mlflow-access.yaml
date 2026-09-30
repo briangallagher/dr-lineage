@@ -1,0 +1,15 @@
+# Bind only the KFP workload service account, and only in scenario-b, to the
+# operator-provided data-plane integration role (no delete/control-plane verbs).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: lineage-governed-mlflow-integration
+  namespace: scenario-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mlflow-operator-mlflow-integration
+subjects:
+  - kind: ServiceAccount
+    name: pipeline-runner-dspa
+    namespace: scenario-b
