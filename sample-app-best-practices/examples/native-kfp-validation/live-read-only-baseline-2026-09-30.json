@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "rhoai-native-kfp-live-observation:1.0",
+  "evidenceLevel": "VERIFIED_READ_ONLY",
+  "capturedAt": "2026-09-30T15:17:01.455221+00:00",
+  "environment": {
+    "openshiftVersion": "4.21.32",
+    "rhoaiVersion": "3.6.0-ea.1",
+    "namespace": "scenario-b",
+    "dspa": "dspa",
+    "dspaReady": true,
+    "source": "read-only oc queries and temporary local port-forwards"
+  },
+  "kfp": {
+    "runId": "ad6efc7b-4b95-464e-b398-31df6b48e061",
+    "pipelineId": "7e44ad4e-f986-43c3-90d4-c6df8b73c783",
+    "pipelineVersionId": "4707191e-5805-4314-8be6-87fadd84a7b9",
+    "state": "SUCCEEDED",
+    "stateHistory": [
+      {"state": "PENDING", "eventTime": "2026-09-30T09:26:45Z"},
+      {"state": "RUNNING", "eventTime": "2026-09-30T09:26:46Z"},
+      {"state": "SUCCEEDED", "eventTime": "2026-09-30T09:28:38Z"}
+    ],
+    "taskCount": 15,
+    "apiServerImage": "registry.redhat.io/rhoai/odh-ml-pipelines-api-server-v2-rhel9@sha256:1c90ade8fa4e3d23929bbdb846e36d25d00bbbf6770fecad3785f04f0359570f",
+    "launcherImage": "registry.redhat.io/rhoai/odh-ml-pipelines-launcher-rhel9@sha256:c9ffd6cf7adb887fe7859e23831a9c94280ffb050022576a14846314ee320b32"
+  },
+  "taskPod": {
+    "podName": "governed-asset-to-model-p7cv4-system-container-impl-1381385319",
+    "pipelineRunLabel": "ad6efc7b-4b95-464e-b398-31df6b48e061",
+    "runtimeRoleAnnotation": "launcher",
+    "launcherContainerObserved": true,
+    "contextPathObserved": false,
+    "contextEnvironmentObserved": false,
+    "lineageContextEnvNamesObserved": [],
+    "workloadKfpRunIdEnvObserved": true,
+    "workloadKfpPodIdentityEnvObserved": true,
+    "launcherCommandOverrideObserved": false
+  },
+  "dataRegistry": {
+    "evidenceLevel": "VERIFIED_READ_ONLY",
+    "assetId": "33fbc314-ea15-4805-a958-95b8d29dd67d",
+    "project": "scenario-b",
+    "collection": "forms",
+    "name": "iso_form_extractions",
+    "assetType": "table",
+    "format": "parquet",
+    "location": "s3://poc-underwriting/warehouse/forms/iso_form_extractions"
+  },
+  "mlflow": {
+    "evidenceLevel": "VERIFIED_READ_ONLY",
+    "runId": "8856dadf381141d4a5009c63d5c749b3",
+    "rootRunTag": "ad6efc7b-4b95-464e-b398-31df6b48e061",
+    "assetTag": "33fbc314-ea15-4805-a958-95b8d29dd67d",
+    "metrics": {
+      "train_accuracy": 1.0,
+      "holdout_accuracy": 0.0
+    },
+    "artifactDirectories": ["evaluation", "evidence", "model"]
+  },
+  "openLineage": {
+    "evidenceLevel": "VERIFIED_READ_ONLY",
+    "eventCount": 4,
+    "states": ["COMPLETE", "START"],
+    "jobs": [
+      "kfp://api.bgal-pool-ljt7l.aws.rh-ods.com/scenario-b/governed-asset-to-model",
+      "kfp://api.bgal-pool-ljt7l.aws.rh-ods.com/scenario-b/train-governed-baseline"
+    ],
+    "nativeKfpFacetObserved": false,
+    "eventShapes": {
+      "rootStart": {"inputCount": 0, "outputCount": 0},
+      "rootComplete": {"inputCount": 0, "outputCount": 0},
+      "taskStart": {"inputCount": 0, "outputCount": 0},
+      "taskComplete": {"inputCount": 2, "outputCount": 1}
+    }
+  },
+  "contractProjection": {
+    "evidenceLevel": "LOCAL_CONTRACT_PROJECTION",
+    "profile": "rhoai-kfp:1.0",
+    "rootEventTypes": ["START", "RUNNING", "COMPLETE"],
+    "outboxCount": 3,
+    "sentToMarquez": false
+  },
+  "checks": [
+    {
+      "id": "LIVE-01",
+      "area": "KFP root identity and lifecycle",
+      "result": "PASS",
+      "evidence": "The read-only KFP API returned the exact run UUID, pipeline/version IDs, SUCCEEDED state, and PENDING-to-RUNNING-to-SUCCEEDED history."
+    },
+    {
+      "id": "LIVE-02",
+      "area": "Task-context injection",
+      "result": "BLOCKED",
+      "evidence": "The pod had the KFP launcher container and workload KFP identity variables, but no rhoai lineage context path, context environment, context volume, or launcher command override was observed."
+    },
+    {
+      "id": "LIVE-03",
+      "area": "Workload edge and model outcome",
+      "result": "PARTIAL",
+      "evidence": "The live task event had two inputs and one output, and the correlated MLflow run had metrics, model/evaluation artifact directories, and Data Registry/KFP tags; the event was adapter-owned and had no native rhoaiKfp facet."
+    },
+    {
+      "id": "LIVE-04",
+      "area": "Retry and delivery separation",
+      "result": "NOT_EXERCISED",
+      "evidence": "The observed run succeeded without a retry, and no deployed native outbox was observed. The local contract projection demonstrates the shape but was not sent to Marquez."
+    }
+  ],
+  "recommendation": {
+    "currentNativeSupport": "NO_GO",
+    "nextImplementationSpike": "GO",
+    "productionAdoption": "NO_GO"
+  },
+  "limitations": [
+    "This is one environment-specific read-only observation on 2026-09-30.",
+    "The live events prove adapter-owned correlation and workload edges, not native KFP OpenLineage production.",
+    "No cluster resources, external service records, or shared lineage events were changed by the observation."
+  ]
+}

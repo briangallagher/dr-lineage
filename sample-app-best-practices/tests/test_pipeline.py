@@ -47,5 +47,8 @@ def test_governed_pipeline_compiles_with_project_credentials_and_kfp_context(tmp
     assert "AWS_S3_BUCKET" in text
     assert "envVar: SOURCE_BUCKET\n              secretKey: AWS_S3_BUCKET" in text
     assert "envVar: S3_ENDPOINT\n              secretKey: AWS_S3_ENDPOINT" in text
+    # This remains the adapter compatibility path. Native KFP context injection
+    # is proposed separately and must not be implied by this compiled package.
+    assert "RHOAI_LINEAGE_CONTEXT_PATH" not in text
     assert "{{$.pipeline_job_uuid}}" not in text
     assert "enableCache: true" not in text

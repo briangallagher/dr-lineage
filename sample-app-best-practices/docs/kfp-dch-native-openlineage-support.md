@@ -2,6 +2,10 @@
 
 Status: working architecture proposal, 2026-09-11
 
+The KFP-specific executable contract is narrowed and versioned in
+[native KFP lineage context and root-event contract](native-kfp-lineage-context-contract.md).
+This page remains the broader cross-component proposal for KFP, DCH, and Spark.
+
 This document describes what would be required for native OpenLineage support in
 Kubeflow Pipelines (KFP) and Data Hub Connect (DCH), using the sample application's
 lineage model as the reference.

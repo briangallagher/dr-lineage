@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rhoai:kfp:lineage-context:1.0",
+  "title": "RHOAI KFP lineage context envelope",
+  "description": "Proposed non-secret context passed from a KFP root to an integrated task.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "profile",
+    "version",
+    "deployment",
+    "project",
+    "root",
+    "pipeline"
+  ],
+  "properties": {
+    "profile": {
+      "const": "rhoai-kfp"
+    },
+    "version": {
+      "const": "1.0"
+    },
+    "deployment": {
+      "$ref": "#/$defs/safeIdentifier"
+    },
+    "project": {
+      "$ref": "#/$defs/safeIdentifier"
+    },
+    "root": {
+      "$ref": "#/$defs/jobRun"
+    },
+    "pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "versionId", "name"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/safeIdentifier"
+        },
+        "versionId": {
+          "$ref": "#/$defs/safeIdentifier"
+        },
+        "name": {
+          "$ref": "#/$defs/displayName"
+        }
+      }
+    },
+    "parent": {
+      "$ref": "#/$defs/jobRun"
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "id", "runId", "attempt"],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/displayName"
+        },
+        "id": {
+          "$ref": "#/$defs/safeIdentifier"
+        },
+        "runId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["task"]
+      },
+      "then": {
+        "required": ["parent"]
+      }
+    },
+    {
+      "if": {
+        "required": ["parent"]
+      },
+      "then": {
+        "required": ["task"]
+      }
+    }
+  ],
+  "$defs": {
+    "safeIdentifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\r\\n\\t]+$"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "jobRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jobNamespace", "jobName", "runId"],
+      "properties": {
+        "jobNamespace": {
+          "type": "string",
+          "pattern": "^kfp://[^/\\s]+/[^/\\s]+$"
+        },
+        "jobName": {
+          "$ref": "#/$defs/displayName"
+        },
+        "runId": {
+          "$ref": "#/$defs/uuid"
+        }
+      }
+    }
+  }
+}

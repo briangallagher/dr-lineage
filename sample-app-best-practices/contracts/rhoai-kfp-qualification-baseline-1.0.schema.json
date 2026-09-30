@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rhoai:kfp:qualification-baseline:1.0",
+  "title": "RHOAI KFP packaged qualification baseline",
+  "description": "Sanitized, non-secret evidence for one pinned RHOAI AI Pipelines release and generated task pod.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "observedAt",
+    "environment",
+    "release",
+    "images",
+    "apiServer",
+    "taskPod",
+    "provenance",
+    "coverage"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "rhoai-kfp-qualification:1.0"},
+    "observedAt": {"type": "string", "format": "date"},
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platformVersion", "namespace", "dspaName", "deployment"],
+      "properties": {
+        "platformVersion": {"type": "string", "minLength": 1},
+        "namespace": {"type": "string", "minLength": 1},
+        "dspaName": {"type": "string", "minLength": 1},
+        "deployment": {"type": "string", "minLength": 1}
+      }
+    },
+    "release": {"$ref": "#/$defs/release"},
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dspo", "apiServer", "launcher", "driver", "argoExec", "argoWorkflowController"],
+      "properties": {
+        "dspo": {"$ref": "#/$defs/image"},
+        "apiServer": {"$ref": "#/$defs/image"},
+        "launcher": {"$ref": "#/$defs/image"},
+        "driver": {"$ref": "#/$defs/image"},
+        "argoExec": {"$ref": "#/$defs/image"},
+        "argoWorkflowController": {"$ref": "#/$defs/image"}
+      }
+    },
+    "apiServer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["image", "serviceAccount", "command", "args", "configHash", "launcherEnv", "contextInjection"],
+      "properties": {
+        "image": {"$ref": "#/$defs/image"},
+        "serviceAccount": {"type": "string", "minLength": 1},
+        "command": {"type": "array", "items": {"type": "string"}},
+        "args": {"type": "array", "items": {"type": "string"}},
+        "configHash": {"type": "string", "minLength": 1},
+        "launcherEnv": {"$ref": "#/$defs/launcherEnv"},
+        "contextInjection": {"$ref": "#/$defs/contextInjection"}
+      }
+    },
+    "taskPod": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "phase", "launcher", "userContainer", "contextInjection"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "phase": {"const": "Succeeded"},
+        "launcher": {"$ref": "#/$defs/taskLauncher"},
+        "userContainer": {"$ref": "#/$defs/userContainer"},
+        "contextInjection": {"$ref": "#/$defs/contextInjection"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["releaseMapping", "componentSourceRefs", "registryMetadata", "ownerApi"],
+      "properties": {
+        "releaseMapping": {"$ref": "#/$defs/evidence"},
+        "componentSourceRefs": {"$ref": "#/$defs/evidence"},
+        "registryMetadata": {"$ref": "#/$defs/evidence"},
+        "ownerApi": {"$ref": "#/$defs/evidence"}
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contractChecks", "upgradeScenarios"],
+      "properties": {
+        "contractChecks": {
+          "type": "array",
+          "minItems": 14,
+          "items": {"$ref": "#/$defs/coverageEntry"}
+        },
+        "upgradeScenarios": {
+          "type": "array",
+          "minItems": 4,
+          "items": {"$ref": "#/$defs/coverageEntry"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "image": {
+      "type": "string",
+      "pattern": "^.+@sha256:[0-9a-f]{64}$"
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["csvName", "version", "phase", "repository", "createdAt", "relatedImages"],
+      "properties": {
+        "csvName": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "phase": {"const": "Succeeded"},
+        "repository": {"type": "string", "format": "uri"},
+        "createdAt": {"type": "string", "format": "date-time"},
+        "relatedImages": {"type": "array", "minItems": 6, "items": {"$ref": "#/$defs/image"}}
+      }
+    },
+    "launcherEnv": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["V2_LAUNCHER_IMAGE", "V2_LAUNCHER_COMMAND", "V2_DRIVER_IMAGE"],
+      "properties": {
+        "V2_LAUNCHER_IMAGE": {"$ref": "#/$defs/envSetting"},
+        "V2_LAUNCHER_COMMAND": {"$ref": "#/$defs/envSetting"},
+        "V2_DRIVER_IMAGE": {"$ref": "#/$defs/envSetting"}
+      }
+    },
+    "envSetting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["configured"],
+      "properties": {
+        "configured": {"type": "boolean"},
+        "value": {"type": "string"}
+      }
+    },
+    "contextInjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contextPathEnvNames", "contextVolumePresent", "resolverConfigured", "outboxConfigured"],
+      "properties": {
+        "contextPathEnvNames": {"type": "array", "items": {"type": "string"}},
+        "contextVolumePresent": {"type": "boolean"},
+        "resolverConfigured": {"type": "boolean"},
+        "outboxConfigured": {"type": "boolean"}
+      }
+    },
+    "taskLauncher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["image", "command", "args", "contextEnvNames", "contextVolumePresent"],
+      "properties": {
+        "image": {"$ref": "#/$defs/image"},
+        "command": {"type": "array", "items": {"type": "string"}},
+        "args": {"type": "array", "items": {"type": "string"}},
+        "contextEnvNames": {"type": "array", "items": {"type": "string"}},
+        "contextVolumePresent": {"type": "boolean"}
+      }
+    },
+    "userContainer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["launcherPath", "flagNames", "envNames", "contextVolumePresent"],
+      "properties": {
+        "launcherPath": {"type": "string", "const": "/kfp-launcher/launch"},
+        "flagNames": {"type": "array", "items": {"type": "string"}},
+        "envNames": {"type": "array", "items": {"type": "string"}},
+        "contextVolumePresent": {"type": "boolean"}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "source"],
+      "properties": {
+        "status": {"enum": ["observed", "unknown", "proposed", "blocked"]},
+        "source": {"type": "string", "minLength": 1},
+        "result": {"type": "string"}
+      }
+    },
+    "coverageEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "evidence"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "status": {"enum": ["local-exercised", "native-blocked", "planned", "unknown"]},
+        "evidence": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

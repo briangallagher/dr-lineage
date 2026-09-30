@@ -13,9 +13,13 @@ import uvicorn
 
 from lineage_demo.config import get_settings
 from lineage_demo.events import LineageEmitter
-from lineage_demo.governed_model import AssetReference, run_governed_training
+from lineage_demo.evidence_import import import_live_evidence, write_evidence
 from lineage_demo.identities import canonical_s3_dataset, root_run_id
 from lineage_demo.lifecycle import finish_root, root_job_facets, start_root
+from lineage_demo.native_validation import (
+    build_native_path_validation,
+    write_native_path_validation,
+)
 from lineage_demo.processing import (
     EMBED_JOB_NAME,
     INGEST_JOB_NAME,
@@ -24,6 +28,9 @@ from lineage_demo.processing import (
     embed,
     ingest,
 )
+from lineage_demo.product_demo import build_product_demo, write_product_demo
+from lineage_demo.replay_api import create_app
+from lineage_demo.showcase import SHOWCASE_ROOT_RUN_ID, build_showcase, write_showcase
 from lineage_demo.spark_submit import submit_and_wait
 from lineage_demo.storage import put_bytes, s3_client
 
@@ -111,6 +118,65 @@ def _register(subparsers: argparse._SubParsersAction) -> None:
     register.add_argument("--location", required=True)
     register.add_argument("--idempotency-key", required=True)
 
+    showcase = subparsers.add_parser(
+        "showcase", help="Build the local product-level KFP lineage showcase"
+    )
+    showcase.add_argument("--output-dir", default="build/product-showcase")
+    showcase.add_argument("--run-id", default=SHOWCASE_ROOT_RUN_ID)
+    showcase.add_argument(
+        "--emit",
+        action="store_true",
+        help="Send the generated OpenLineage events to the configured Marquez endpoint",
+    )
+
+    product_demo = subparsers.add_parser(
+        "product-demo", help="Build the replayable stakeholder-facing lineage cockpit"
+    )
+    product_demo.add_argument("--output-dir", default="build/product-demo")
+    product_demo.add_argument("--emit", action="store_true")
+    product_demo.add_argument("--verified-evidence", default="")
+
+    poc = subparsers.add_parser(
+        "poc", help="Build the canonical offline PM and architecture lineage POC"
+    )
+    poc.add_argument("--output-dir", default="build/poc")
+    poc.add_argument(
+        "--verified-evidence",
+        default="",
+        help="Use a sanitized read-only RHOAI evidence snapshot instead of the bundled one",
+    )
+
+    native_validation = subparsers.add_parser(
+        "native-validation", help="Run the local-only native KFP path checkpoint"
+    )
+    native_validation.add_argument("--output-dir", default="build/native-validation")
+
+    evidence = subparsers.add_parser(
+        "import-rhoai-evidence",
+        help="Import one live KFP run through local read-only port-forwards",
+    )
+    evidence.add_argument("--kfp-url", required=True)
+    evidence.add_argument("--run-id", required=True)
+    evidence.add_argument(
+        "--deployment", default=os.environ.get("RHOAI_LINEAGE_DEPLOYMENT", "")
+    )
+    evidence.add_argument("--marquez-url", default="")
+    evidence.add_argument("--registry-url", default="")
+    evidence.add_argument(
+        "--registry-token", default=os.environ.get("RHOAI_DATA_REGISTRY_TOKEN", "")
+    )
+    evidence.add_argument("--mlflow-url", default="")
+    evidence.add_argument("--mlflow-token", default=os.environ.get("RHOAI_MLFLOW_TOKEN", ""))
+    evidence.add_argument("--mlflow-workspace", default="")
+    evidence.add_argument("--output", default="build/product-demo/live-rhoai-evidence.json")
+
+    demo_serve = subparsers.add_parser(
+        "demo-serve", help="Serve the local product demo and replay API"
+    )
+    demo_serve.add_argument("--data-dir", default="build/product-demo")
+    demo_serve.add_argument("--host", default="127.0.0.1")
+    demo_serve.add_argument("--port", type=int, default=8090)
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="lineage-demo")
@@ -139,6 +205,8 @@ def main() -> None:
     elif args.command == "root-end":
         finish_root(settings, args.pipeline_job_id, args.state, args.error, job_name=args.job_name)
     elif args.command == "train-governed":
+        from lineage_demo.governed_model import AssetReference, run_governed_training
+
         if not args.registry_url or not args.tracking_uri:
             parser.error("DATA_REGISTRY_URL and MLFLOW_TRACKING_URI are required")
         result = run_governed_training(
@@ -205,6 +273,92 @@ def main() -> None:
         if response.status_code not in {200, 201}:
             raise RuntimeError(f"Registry returned {response.status_code}: {response.text}")
         print(json.dumps(response.json(), indent=2))
+    elif args.command == "showcase":
+        fixture_root = Path(__file__).resolve().parents[2]
+        bundle = build_showcase(settings, root_run_id=args.run_id)
+        result = write_showcase(
+            bundle,
+            Path(args.output_dir),
+            fixture_root / "contracts",
+            emit=args.emit,
+            settings=settings,
+        )
+        print(json.dumps(result, indent=2, sort_keys=True))
+    elif args.command == "product-demo":
+        fixture_root = Path(__file__).resolve().parents[2]
+        evidence = None
+        if args.verified_evidence:
+            evidence = json.loads(Path(args.verified_evidence).read_text(encoding="utf-8"))
+        document = build_product_demo(settings, fixture_root, verified_evidence=evidence)
+        result = write_product_demo(
+            document,
+            Path(args.output_dir),
+            fixture_root,
+            emit=args.emit,
+            settings=settings,
+        )
+        print(json.dumps(result, indent=2, sort_keys=True))
+    elif args.command == "poc":
+        fixture_root = Path(__file__).resolve().parents[2]
+        evidence = None
+        if args.verified_evidence:
+            evidence = json.loads(Path(args.verified_evidence).read_text(encoding="utf-8"))
+        document = build_product_demo(settings, fixture_root, verified_evidence=evidence)
+        result = write_product_demo(
+            document,
+            Path(args.output_dir),
+            fixture_root,
+            emit=False,
+            settings=settings,
+        )
+        result["mode"] = "offline-deterministic-poc"
+        print(json.dumps(result, indent=2, sort_keys=True))
+    elif args.command == "native-validation":
+        fixture_root = Path(__file__).resolve().parents[2]
+        document = build_product_demo(settings, fixture_root)
+        validation = build_native_path_validation(document)
+        result = write_native_path_validation(validation, Path(args.output_dir))
+        result.update(
+            {
+                "status": validation["status"],
+                "recommendation": validation["recommendation"],
+                "checkCount": len(validation["checks"]),
+                "evidenceState": validation["evidenceState"],
+            }
+        )
+        print(json.dumps(result, indent=2, sort_keys=True))
+    elif args.command == "import-rhoai-evidence":
+        evidence = import_live_evidence(
+            kfp_url=args.kfp_url,
+            run_id=args.run_id,
+            deployment=args.deployment or None,
+            marquez_url=args.marquez_url or None,
+            registry_url=args.registry_url or None,
+            registry_token=args.registry_token or None,
+            mlflow_url=args.mlflow_url or None,
+            mlflow_token=args.mlflow_token or None,
+            mlflow_workspace=args.mlflow_workspace or None,
+        )
+        output = write_evidence(evidence, Path(args.output))
+        print(
+            json.dumps(
+                {
+                    "output": str(output),
+                    "evidenceLevel": evidence["evidenceLevel"],
+                    "runId": evidence["runId"],
+                    "pipelineId": evidence["pipelineId"],
+                    "state": evidence["state"],
+                    "hasOpenLineage": "openLineage" in evidence,
+                    "hasDataRegistry": "dataRegistry" in evidence,
+                    "hasMLflow": "mlflow" in evidence,
+                    "limitations": evidence["limitations"],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+    elif args.command == "demo-serve":
+        uvicorn.run(create_app(args.data_dir), host=args.host, port=args.port)
     elif args.command == "publish-jobs":
         emitter = LineageEmitter(settings)
         emitter.job_event(

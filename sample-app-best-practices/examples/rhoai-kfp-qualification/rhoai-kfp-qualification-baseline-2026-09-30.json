@@ -1,0 +1,256 @@
+{
+  "schemaVersion": "rhoai-kfp-qualification:1.0",
+  "observedAt": "2026-09-30",
+  "environment": {
+    "platformVersion": "3.6.0-ea.1",
+    "namespace": "scenario-b",
+    "dspaName": "dspa",
+    "deployment": "ds-pipeline-dspa"
+  },
+  "release": {
+    "csvName": "rhods-operator.3.6.0-ea.1",
+    "version": "3.6.0-ea.1",
+    "phase": "Succeeded",
+    "repository": "https://github.com/red-hat-data-services/rhods-operator",
+    "createdAt": "2026-09-02T11:54:43Z",
+    "relatedImages": [
+      "registry.redhat.io/rhoai/odh-data-science-pipelines-argo-argoexec-rhel9@sha256:9a5cf64947ca0998d7570b1a73f8816a694959afcdc87b6d1511f9ccbf6988b7",
+      "registry.redhat.io/rhoai/odh-data-science-pipelines-argo-workflowcontroller-rhel9@sha256:f9ed7df3a580d762b66a8e059770a085f1c9164d5aea5011b600525c1d2a3a09",
+      "registry.redhat.io/rhoai/odh-data-science-pipelines-operator-controller-rhel9@sha256:f5c36e87054387a8f630e5b0ada31fdac2f5e39d547dc2a28b890b9504f23a6e",
+      "registry.redhat.io/rhoai/odh-ml-pipelines-api-server-v2-rhel9@sha256:1c90ade8fa4e3d23929bbdb846e36d25d00bbbf6770fecad3785f04f0359570f",
+      "registry.redhat.io/rhoai/odh-ml-pipelines-driver-rhel9@sha256:9f36b302daabe4916a0075b6ccd40a3af664e7e3b4e50be9dba7ed2ac08b7692",
+      "registry.redhat.io/rhoai/odh-ml-pipelines-launcher-rhel9@sha256:c9ffd6cf7adb887fe7859e23831a9c94280ffb050022576a14846314ee320b32",
+      "registry.redhat.io/rhoai/odh-ml-pipelines-persistenceagent-v2-rhel9@sha256:0a0417396cd9e550143c60553d37feb735b082b3e4944395a725def90fa52f79",
+      "registry.redhat.io/rhoai/odh-ml-pipelines-scheduledworkflow-v2-rhel9@sha256:8599812a744281690f2dea26179982c96227b13a17a587c991f056763d579b6a"
+    ]
+  },
+  "images": {
+    "dspo": "registry.redhat.io/rhoai/odh-data-science-pipelines-operator-controller-rhel9@sha256:f5c36e87054387a8f630e5b0ada31fdac2f5e39d547dc2a28b890b9504f23a6e",
+    "apiServer": "registry.redhat.io/rhoai/odh-ml-pipelines-api-server-v2-rhel9@sha256:1c90ade8fa4e3d23929bbdb846e36d25d00bbbf6770fecad3785f04f0359570f",
+    "launcher": "registry.redhat.io/rhoai/odh-ml-pipelines-launcher-rhel9@sha256:c9ffd6cf7adb887fe7859e23831a9c94280ffb050022576a14846314ee320b32",
+    "driver": "registry.redhat.io/rhoai/odh-ml-pipelines-driver-rhel9@sha256:9f36b302daabe4916a0075b6ccd40a3af664e7e3b4e50be9dba7ed2ac08b7692",
+    "argoExec": "registry.redhat.io/rhoai/odh-data-science-pipelines-argo-argoexec-rhel9@sha256:9a5cf64947ca0998d7570b1a73f8816a694959afcdc87b6d1511f9ccbf6988b7",
+    "argoWorkflowController": "registry.redhat.io/rhoai/odh-data-science-pipelines-argo-workflowcontroller-rhel9@sha256:f9ed7df3a580d762b66a8e059770a085f1c9164d5aea5011b600525c1d2a3a09"
+  },
+  "apiServer": {
+    "image": "registry.redhat.io/rhoai/odh-ml-pipelines-api-server-v2-rhel9@sha256:1c90ade8fa4e3d23929bbdb846e36d25d00bbbf6770fecad3785f04f0359570f",
+    "serviceAccount": "ds-pipeline-dspa",
+    "command": [
+      "/bin/apiserver"
+    ],
+    "args": [
+      "--config=/config",
+      "-logtostderr=true",
+      "--sampleconfig=/config/sample_config.json",
+      "--tlsCertPath=/etc/tls/private/tls.crt",
+      "--tlsCertKeyPath=/etc/tls/private/tls.key",
+      "--pipelinesStoreKubernetes=true",
+      "--disableWebhook=true"
+    ],
+    "configHash": "aa05d75c5d37cb100e89f0d5ea1adf0c22e5e70f46d1818b571900d63a3f8d2a",
+    "launcherEnv": {
+      "V2_LAUNCHER_IMAGE": {
+        "configured": true,
+        "value": "registry.redhat.io/rhoai/odh-ml-pipelines-launcher-rhel9@sha256:c9ffd6cf7adb887fe7859e23831a9c94280ffb050022576a14846314ee320b32"
+      },
+      "V2_LAUNCHER_COMMAND": {
+        "configured": false
+      },
+      "V2_DRIVER_IMAGE": {
+        "configured": true,
+        "value": "registry.redhat.io/rhoai/odh-ml-pipelines-driver-rhel9@sha256:9f36b302daabe4916a0075b6ccd40a3af664e7e3b4e50be9dba7ed2ac08b7692"
+      }
+    },
+    "contextInjection": {
+      "contextPathEnvNames": [],
+      "contextVolumePresent": false,
+      "resolverConfigured": false,
+      "outboxConfigured": false
+    }
+  },
+  "taskPod": {
+    "name": "governed-asset-to-model-8gddt-system-container-impl-3191863202",
+    "phase": "Succeeded",
+    "launcher": {
+      "image": "registry.redhat.io/rhoai/odh-ml-pipelines-launcher-rhel9@sha256:c9ffd6cf7adb887fe7859e23831a9c94280ffb050022576a14846314ee320b32",
+      "command": [
+        "launcher-v2"
+      ],
+      "args": [
+        "--copy",
+        "/kfp-launcher/launch",
+        "--cache_disabled"
+      ],
+      "contextEnvNames": [],
+      "contextVolumePresent": false
+    },
+    "userContainer": {
+      "launcherPath": "/kfp-launcher/launch",
+      "flagNames": [
+        "--loglevel",
+        "--log-format",
+        "--gloglevel",
+        "--",
+        "--pipeline_name",
+        "--run_id",
+        "--execution_id",
+        "--executor_input",
+        "--component_spec",
+        "--pod_name",
+        "--pod_uid",
+        "--ml_pipeline_server_address",
+        "--ml_pipeline_server_port",
+        "--mlmd_server_address",
+        "--mlmd_server_port",
+        "--publish_logs",
+        "--ml_pipeline_tls_enabled",
+        "--metadata_tls_enabled",
+        "--ca_cert_path",
+        "--cache_disabled",
+        "--publish_logs",
+        "--"
+      ],
+      "envNames": [
+        "PROJECT_NAMESPACE",
+        "CLUSTER_NAME",
+        "MARQUEZ_URL",
+        "DATA_REGISTRY_URL",
+        "MLFLOW_TRACKING_URI",
+        "MLFLOW_TRACKING_AUTH",
+        "MLFLOW_TRACKING_SERVER_CERT_PATH",
+        "KFP_RUN_ID",
+        "KFP_POD_NAME",
+        "KFP_POD_UID",
+        "ARGO_CONTAINER_NAME",
+        "ARGO_NODE_ID",
+        "ARGO_INCLUDE_SCRIPT_OUTPUT",
+        "ARGO_DEADLINE",
+        "ARGO_PROGRESS_FILE",
+        "ARGO_PROGRESS_PATCH_TICK_DURATION",
+        "ARGO_PROGRESS_FILE_TICK_DURATION"
+      ],
+      "contextVolumePresent": false
+    },
+    "contextInjection": {
+      "contextPathEnvNames": [],
+      "contextVolumePresent": false,
+      "resolverConfigured": false,
+      "outboxConfigured": false
+    }
+  },
+  "provenance": {
+    "releaseMapping": {
+      "status": "observed",
+      "source": "installed OLM CSV relatedImages",
+      "result": "rhods-operator.3.6.0-ea.1"
+    },
+    "componentSourceRefs": {
+      "status": "unknown",
+      "source": "installed release manifest does not expose component source commits"
+    },
+    "registryMetadata": {
+      "status": "unknown",
+      "source": "not collected by the cluster capture script"
+    },
+    "ownerApi": {
+      "status": "unknown",
+      "source": "owner approval is not represented in cluster state"
+    }
+  },
+  "coverage": {
+    "contractChecks": [
+      {
+        "id": "C-01",
+        "status": "local-exercised",
+        "evidence": "root context and START projection tests"
+      },
+      {
+        "id": "C-02",
+        "status": "local-exercised",
+        "evidence": "terminal COMPLETE projection tests"
+      },
+      {
+        "id": "C-03",
+        "status": "local-exercised",
+        "evidence": "FAIL and ABORT projection tests"
+      },
+      {
+        "id": "C-04",
+        "status": "local-exercised",
+        "evidence": "state-history and idempotency tests"
+      },
+      {
+        "id": "C-05",
+        "status": "local-exercised",
+        "evidence": "launcher context plan and materialization tests"
+      },
+      {
+        "id": "C-06",
+        "status": "local-exercised",
+        "evidence": "missing-context diagnostic tests"
+      },
+      {
+        "id": "C-07",
+        "status": "local-exercised",
+        "evidence": "retry child identity tests"
+      },
+      {
+        "id": "C-08",
+        "status": "local-exercised",
+        "evidence": "child ownership contract tests"
+      },
+      {
+        "id": "C-09",
+        "status": "planned",
+        "evidence": "native outbox outage test not implemented"
+      },
+      {
+        "id": "C-10",
+        "status": "local-exercised",
+        "evidence": "replay and conflicting-payload tests"
+      },
+      {
+        "id": "C-11",
+        "status": "planned",
+        "evidence": "native cross-project authorization test not implemented"
+      },
+      {
+        "id": "C-12",
+        "status": "local-exercised",
+        "evidence": "secret-safety tests"
+      },
+      {
+        "id": "C-13",
+        "status": "local-exercised",
+        "evidence": "launcher flag preservation tests"
+      },
+      {
+        "id": "C-14",
+        "status": "planned",
+        "evidence": "upgrade qualification not run"
+      }
+    ],
+    "upgradeScenarios": [
+      {
+        "id": "U-01-dspo-image",
+        "status": "planned",
+        "evidence": "rerun release mapping and operator reconciliation checks"
+      },
+      {
+        "id": "U-02-api-server-image",
+        "status": "planned",
+        "evidence": "rerun API-server launcher settings and task-pod shape checks"
+      },
+      {
+        "id": "U-03-launcher-abi",
+        "status": "planned",
+        "evidence": "rerun wrapper flag, retry, cancellation, and exit checks"
+      },
+      {
+        "id": "U-04-context-contract",
+        "status": "planned",
+        "evidence": "rerun schema, authorization, outage, and replay checks"
+      }
+    ]
+  }
+}

@@ -218,6 +218,9 @@ def test_local_model_path_records_mlflow_artifact_and_openlineage_evidence(
     assert complete["run"]["facets"]["parent"]["run"]["runId"] == (
         "42db060a-d89d-40d1-a7cb-28d6703b5d07"
     )
+    assert complete["run"]["facets"]["parent"]["root"]["run"]["runId"] == (
+        "42db060a-d89d-40d1-a7cb-28d6703b5d07"
+    )
     assert complete["inputs"][0]["namespace"] == "dataregistry://test-cluster/scenario-b"
     assert complete["inputs"][0]["name"] == ASSET_UUID
     assert complete["inputs"][0]["facets"]["symlinks"]["identifiers"][0] == {

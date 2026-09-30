@@ -380,6 +380,9 @@ def run_governed_training(
             parent_namespace=settings.kfp_namespace,
             parent_name=ROOT_JOB_NAME,
             parent_run_id=root_id,
+            root_namespace=settings.kfp_namespace,
+            root_name=ROOT_JOB_NAME,
+            root_run_id=root_id,
         ),
         "executionParameters": facets.execution_parameters(
             {"assetProject": reference.project, "kfpPodName": pod_name}

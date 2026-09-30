@@ -1,0 +1,21 @@
+{
+  "evidenceLevel": "VERIFIED_READ_ONLY",
+  "summary": "A read-only RHOAI cluster trial established the real KFP run, pipeline definition, pipeline version, and terminal state used by the native-contract investigation.",
+  "sourceDocument": "docs/cluster-validation.md",
+  "rhoaiVersion": "3.6.0-ea.1",
+  "dspa": "scenario-b",
+  "runId": "ad6efc7b-4b95-464e-b398-31df6b48e061",
+  "pipelineId": "7e44ad4e-f986-43c3-90d4-c6df8b73c783",
+  "pipelineVersionId": "4707191e-5805-4314-8be6-87fadd84a7b9",
+  "state": "SUCCEEDED",
+  "stateHistory": [
+    {"state": "PENDING", "eventTime": "2026-09-30T09:26:45+00:00"},
+    {"state": "RUNNING", "eventTime": "2026-09-30T09:26:46+00:00"},
+    {"state": "SUCCEEDED", "eventTime": "2026-09-30T09:28:38+00:00"}
+  ],
+  "limitations": [
+    "This snapshot verifies KFP identity and state history, not native KFP OpenLineage emission.",
+    "The native KFP context and root-event producer remain a proposed integration boundary.",
+    "The snapshot was collected read-only and is not a live query performed by the local cockpit."
+  ]
+}

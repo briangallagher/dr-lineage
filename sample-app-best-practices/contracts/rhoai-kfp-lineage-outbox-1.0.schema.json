@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rhoai:kfp:lineage-outbox:1.0",
+  "title": "RHOAI KFP lineage outbox record",
+  "description": "Proposed storage-neutral record for idempotent root-event delivery.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "profile",
+    "version",
+    "idempotencyKey",
+    "rootRunId",
+    "eventType",
+    "createdAt",
+    "attempts",
+    "deliveryStatus",
+    "event"
+  ],
+  "properties": {
+    "profile": {
+      "const": "rhoai-kfp"
+    },
+    "version": {
+      "const": "1.0"
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "pattern": "^rhoai-kfp:1\\.0:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}:(START|RUNNING|COMPLETE|FAIL|ABORT)$"
+    },
+    "rootRunId": {
+      "$ref": "#/$defs/uuid"
+    },
+    "eventType": {
+      "enum": ["START", "RUNNING", "COMPLETE", "FAIL", "ABORT"]
+    },
+    "createdAt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "deliveryStatus": {
+      "enum": ["PENDING", "RETRY", "DELIVERED", "DEAD_LETTER"]
+    },
+    "event": {
+      "$ref": "#/$defs/rootEvent"
+    }
+  },
+  "$defs": {
+    "rootEvent": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["eventTime", "eventType", "inputs", "job", "outputs", "run"],
+      "properties": {
+        "eventTime": {
+          "type": "string",
+          "minLength": 1
+        },
+        "eventType": {
+          "enum": ["START", "RUNNING", "COMPLETE", "FAIL", "ABORT"]
+        },
+        "inputs": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "outputs": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "job": {
+          "type": "object",
+          "required": ["name", "namespace"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "namespace": {
+              "type": "string",
+              "pattern": "^kfp://[^/\\s]+/[^/\\s]+$"
+            }
+          }
+        },
+        "run": {
+          "type": "object",
+          "required": ["facets", "runId"],
+          "properties": {
+            "facets": {
+              "type": "object",
+              "required": ["rhoaiKfp"],
+              "properties": {
+                "rhoaiKfp": {
+                  "type": "object",
+                  "required": ["rootRunId"],
+                  "properties": {
+                    "rootRunId": {
+                      "$ref": "#/$defs/uuid"
+                    }
+                  }
+                },
+                "parent": false
+              }
+            },
+            "runId": {
+              "$ref": "#/$defs/uuid"
+            }
+          }
+        }
+      }
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    }
+  }
+}

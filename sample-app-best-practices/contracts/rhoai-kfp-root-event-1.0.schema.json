@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rhoai:kfp:root-event:1.0",
+  "title": "RHOAI KFP OpenLineage root event",
+  "description": "Proposed root lifecycle event emitted by a KFP control-plane integration.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "eventTime",
+    "eventType",
+    "inputs",
+    "job",
+    "outputs",
+    "producer",
+    "run",
+    "schemaURL"
+  ],
+  "properties": {
+    "eventTime": {
+      "type": "string",
+      "minLength": 1
+    },
+    "eventType": {
+      "enum": ["START", "RUNNING", "COMPLETE", "FAIL", "ABORT"]
+    },
+    "inputs": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "outputs": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "job": {
+      "$ref": "#/$defs/job"
+    },
+    "producer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run": {
+      "$ref": "#/$defs/run"
+    },
+    "schemaURL": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "job": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["facets", "name", "namespace"],
+      "properties": {
+        "facets": {
+          "type": "object"
+        },
+        "name": {
+          "$ref": "#/$defs/displayName"
+        },
+        "namespace": {
+          "type": "string",
+          "pattern": "^kfp://[^/\\s]+/[^/\\s]+$"
+        }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["facets", "runId"],
+      "properties": {
+        "facets": {
+          "$ref": "#/$defs/runFacets"
+        },
+        "runId": {
+          "$ref": "#/$defs/uuid"
+        }
+      }
+    },
+    "runFacets": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["rhoaiKfp"],
+      "properties": {
+        "rhoaiKfp": {
+          "$ref": "#/$defs/rhoaiKfp"
+        },
+        "parent": false
+      }
+    },
+    "rhoaiKfp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "_producer",
+        "_schemaURL",
+        "deployment",
+        "pipelineId",
+        "pipelineName",
+        "pipelineVersionId",
+        "profile",
+        "profileVersion",
+        "project",
+        "rootRunId"
+      ],
+      "properties": {
+        "_producer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "_schemaURL": {
+          "const": "urn:rhoai:kfp:lineage-context:1.0"
+        },
+        "deployment": {
+          "$ref": "#/$defs/safeIdentifier"
+        },
+        "pipelineId": {
+          "$ref": "#/$defs/safeIdentifier"
+        },
+        "pipelineName": {
+          "$ref": "#/$defs/displayName"
+        },
+        "pipelineVersionId": {
+          "$ref": "#/$defs/safeIdentifier"
+        },
+        "profile": {
+          "const": "rhoai-kfp"
+        },
+        "profileVersion": {
+          "const": "1.0"
+        },
+        "project": {
+          "$ref": "#/$defs/safeIdentifier"
+        },
+        "rootRunId": {
+          "$ref": "#/$defs/uuid"
+        }
+      }
+    },
+    "safeIdentifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\r\\n\\t]+$"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    }
+  }
+}
