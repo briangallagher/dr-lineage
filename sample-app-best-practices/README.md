@@ -21,8 +21,10 @@ Registry UUID ==symlink== raw S3 object
                       mock embeddings
 ```
 
-KFP and Spark are real. The registry API, source data, and embedding algorithm are
-deliberately small mocks. OpenLineage 1.53.0 and Marquez 0.50.0 are pinned.
+In Slice 1, KFP and Spark are real, while the registry API, source data, and
+embedding algorithm are deliberately small mocks. Slice 2 uses the live Data
+Registry and a Parquet-backed baseline model. OpenLineage 1.53.0 and Marquez
+0.50.0 are pinned.
 
 ## Read this first
 
@@ -48,8 +50,8 @@ deliberately small mocks. OpenLineage 1.53.0 and Marquez 0.50.0 are pinned.
 - [Jupyter notebook operational lineage](docs/jupyter-notebook-operational-lineage.md):
   notebook activities, DCH/Spark child runs, model/embedding work, and vector stores.
 - [Governed asset to model local adapter](docs/governed-model-local.md): separate
-  Slice 2 KFP path, live Data Registry contract observations, MLflow artifact
-  linkage, and the remaining cluster prerequisites.
+  Slice 2 KFP path, live Data Registry contract observations, verified
+  OpenLineage/MLflow linkage, and remaining production gaps.
 
 ## Prerequisites
 
@@ -106,9 +108,12 @@ writes, or provide audit-grade reproducibility. Those distinctions are central t
 design rather than treated as implementation gaps.
 
 The separate Slice 2 adapter hashes the Parquet bytes it reads and reports
-`OBSERVED` evidence. It has passed local tests; its same-project KFP service,
-access rules, and app image are staged in `scenario-b`, but no governed run has
-been verified on the cluster.
+`OBSERVED` evidence. Local tests and one `scenario-b` cluster run passed an
+11-check read-only acceptance across KFP, OpenLineage, and MLflow on
+2026-09-30. This remains adapter-emitted lineage, not native RHOAI component
+instrumentation or proof that mutable source bytes remain available. See the
+[governed trial record](docs/governed-model-local.md) for exact run and image
+identities.
 
 ## Cleanup
 

@@ -1,8 +1,8 @@
 # Governed asset to model: Slice 2 adapter
 
-Status: local implementation and tests plus staged `scenario-b` infrastructure,
-2026-09-30. The KFP service, trial MLflow instance, and app image are present,
-but no governed KFP version or Slice 2 run has been uploaded or verified.
+Status: local implementation and tests plus a verified `scenario-b` cluster
+trial, 2026-09-30. This is an adapter demonstration, not native RHOAI component
+event production or a production-ready MLflow deployment.
 
 ## What the adapter proves locally
 
@@ -42,43 +42,31 @@ The MLflow test sets `MLFLOW_ALLOW_FILE_STORE=true` only for its temporary
 local store. The cluster path uses the separate operator-managed tracking
 service and S3 artifact proxy described below.
 
-## Repeatable acceptance check for a future cluster run
+## Read-only acceptance check
 
 `lineage_demo.verify_governed` is a read-only checker for one completed run.
 Its local test uses a real MLflow file store, serialized OpenLineage events, and
-a simulated KFP run response. For a cluster run, export that run's `train-governed`
-result artifact through the authenticated KFP API as `build/governed-result.json`,
-and make the KFP API, Marquez API, and authorized MLflow tracking endpoint
-reachable locally. Then run the checker with the actual uploaded pipeline and
-version IDs:
+a simulated KFP run response. The 2026-09-30 cluster check invoked its
+`verify_governed` function with the actual KFP run, Marquez events, and MLflow
+client. KFP and MLflow service traffic used OpenShift's injected service CA and
+hostname-preserving localhost forwards; TLS verification was not disabled.
+MLflow used a short-lived `scenario-b/pipeline-runner-dspa` token and the
+`scenario-b` workspace. The result was exported to ignored
+`build/governed-result.json` from the KFP ML Metadata `outputs` property for
+execution 9, after matching that execution to the succeeded training pod and
+its `pipeline/runid` label. This direct MLMD database read is a trial-specific
+evidence extraction, not a supported output-export API or reusable product
+integration. The exported JSON's SHA-256 is
+`12fe4cd5f1ef58a3c6acfc1bd1315fbfe6b2f35f834433e0f329f629b1e1f404`.
 
-```bash
-oc whoami -t | UV_CACHE_DIR=/tmp/dr-lineage-uv-cache uv run --frozen \
-  python -m lineage_demo.verify_governed \
-  --result-json build/governed-result.json \
-  --kfp-endpoint https://127.0.0.1:8888 \
-  --kfp-run-id <run-uuid> \
-  --pipeline-id <pipeline-uuid> \
-  --pipeline-version-id <version-uuid> \
-  --marquez-url http://127.0.0.1:5000 \
-  --mlflow-tracking-uri <authorized-tracking-uri> \
-  --cluster <CLUSTER_NAME-from-run-config> \
-  --project scenario-b \
-  --expected-asset-uuid 33fbc314-ea15-4805-a958-95b8d29dd67d \
-  --expected-source-location s3://poc-underwriting/warehouse/forms/iso_form_extractions
-```
-
-The KFP token is read only from stdin, not passed on the command line or
-written to the report. MLflow authentication, if required, must be supplied
-through its supported environment or credential mechanism. The checker fails
-if the KFP run is not successful or lacks the expected pipeline-version
+The checker fails if the KFP run is not successful or lacks the expected pipeline-version
 reference; if the root/child lineage lifecycle, parent, logical asset, physical
 object digests, or model output disagree; or if the MLflow run, model, candidate
 evaluation, and source-evidence artifacts do not match the lineage event.
-It prints check names only. The result artifact's provenance must be established
-when it is exported from KFP; the checker cannot prove that an arbitrary local
-JSON file originated from that run. Nor does it rehash live source objects or
-prove their retention. No cluster acceptance has been performed yet.
+It returns check names only. Eleven checks passed for the trial. The checker
+cannot prove that an arbitrary local JSON file originated from KFP; that is why
+the execution/pod/run linkage was checked separately during export. It also
+does not rehash live source objects or prove their retention.
 
 ## Observed cluster contract
 
@@ -107,21 +95,38 @@ sample object's later availability has not been established. The one-row
 holdout is an evaluation candidate for linkage testing, not model quality
 evidence for promotion.
 
-## Cluster path still to qualify
+## Verified cluster trial and remaining gaps
 
 The Slice 1 KFP/DSPA remains in `ol-best-practices`. A separate `scenario-b`
-DSPA is now Ready for this path, keeping the selected Registry asset, Data
-Connection, and workload in the same project without copying credentials. A
-dedicated KFP artifact bucket, narrow Marquez ingress rule, Registry-read
-RoleBinding for `pipeline-runner-dspa`, a configured MLflow endpoint, and an
-internal-registry app image are staged. The initial image is pinned by digest,
-but its binary-build source tree has not yet been pinned to a Git revision. The
-compiled local package uses
-`image-registry.openshift-image-registry.svc:5000/scenario-b/lineage-governed-app@sha256:9b15bd1100aa0e93368b124276aff90f8dd4f37c0195297beb0b7272d6c44f33`.
-The cluster has:
+DSPA was Ready for this path, keeping the selected Registry asset, Data
+Connection, and workload in the same project. The accepted run used:
+
+| Evidence | Verified value |
+| --- | --- |
+| App source commit | `5322021b3a167ad138a97ff45d316cba933faf14` (local; not pushed) |
+| Internal app image | `image-registry.openshift-image-registry.svc:5000/scenario-b/lineage-governed-app@sha256:80a3968eb94b490707f69f315110d6c8e9bcb87e6b77cf4efe096bfc75944ed9` |
+| Compiled KFP package SHA-256 | `af8989073a17ed07e7ff62383733f47698c7e798c326f53f3dff322416abc3ad` |
+| Uploaded pipeline ID | `7e44ad4e-f986-43c3-90d4-c6df8b73c783` |
+| Uploaded version ID | `4707191e-5805-4314-8be6-87fadd84a7b9` (`source-5322021b-image-80a3968e`) |
+| Accepted KFP run | `ad6efc7b-4b95-464e-b398-31df6b48e061` (`SUCCEEDED`) |
+| Linked MLflow run | `8856dadf381141d4a5009c63d5c749b3` (`FINISHED`) |
+
+The first run, `d7307cdd-a609-417c-8357-2a02420b4f84`, failed before asset
+resolution because the ConfigMap pointed at the unrelated `scenario-b`
+`data-registry-api` workbench proxy. That workbench was intentionally stopped
+and its Service had no endpoints. The corrected ConfigMap targets the healthy
+operator-managed Registry Service at
+`https://feast-data-registry-registry.redhat-ods-applications.svc:8443`, whose
+hostname is covered by the service certificate. A runner-token GET returned
+the pinned Registry UUID and expected Data Connection before resubmission.
+The same immutable pipeline version then succeeded; no workbench restart was
+needed.
+
+The trial cluster has:
 
 - the staged same-project workload service account to retain authorized GET
-  access to the Registry table through the TLS `kube-rbac-proxy` endpoint;
+  access to the Registry table through the operator-managed Registry's TLS
+  `kube-rbac-proxy` endpoint;
 - `data-registry-service-ca` injected into `scenario-b` and the existing
   `dataconnection-minio-iso-forms` Secret, whose expected keys are
   `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_ENDPOINT`, and
@@ -141,11 +146,12 @@ The cluster has:
   anonymous request with 401 and accepts a `scenario-b` runner token with 200.
 
 The DSC already had `mlflowoperator.managementState: Managed`; no DSC patch or
-deprecated dashboard `mlflow` feature flag was needed. The remaining gate is to
-pin a source revision, upload its image-backed KFP version, run it, re-read the
-version reference, and perform the read-only asset-to-model acceptance check.
-Data Connect Hub was source-pinned but not deployed. This path therefore has
-staged infrastructure, not a verified end-to-end cluster execution.
+deprecated dashboard `mlflow` feature flag was needed. A separate cluster-scoped
+`MLflow/mlflow` CR supplied the trial server. `DSPA.spec.mlflow` was unset, so
+this trial does **not** prove KFP's separate automatic MLflow tracking feature.
+Data Connect Hub was source-pinned but not deployed. The demonstrated
+OpenLineage child is emitted by this adapter, not by a native KFP, Data
+Registry, DCH, SDG, or MLflow producer.
 It does not use automatic KFP retries for model training while MLflow artifact
 writes and OpenLineage delivery lack a shared idempotency contract. Spark's
 native events remain covered by the Slice 1 fixture; DCH event production
@@ -156,7 +162,11 @@ The current KFP package still accepts the Data Connection Secret name as a run
 parameter. The adapter checks it against the Registry response after the pod
 starts, but that is not permission to mount arbitrary Secrets: only controlled
 submitters and a narrowly scoped workload service account are suitable for the
-first cluster trial. A reusable platform path needs an explicit policy for
-which Data Connections a run may mount. MLflow completion and OpenLineage
-delivery are also not transactional; the verifier detects a split outcome but
-does not reconcile it.
+first cluster trial. The existing source Data Connection carries broad MinIO
+credentials; it should be replaced with a scoped source credential before a
+production path. The MLflow server uses a separate bucket-scoped MinIO service
+account. A reusable platform path also needs an explicit policy for which Data
+Connections a run may mount, a production backend/HA design instead of this
+single-replica SQLite/PVC MLflow trial, and a supported output export API.
+MLflow completion and OpenLineage delivery are not transactional; the verifier
+detects a split outcome but does not reconcile it.
