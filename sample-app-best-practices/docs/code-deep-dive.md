@@ -31,6 +31,10 @@ Pipeline-related files:
 | spark/transform.py | Actual PySpark transformation. |
 | src/lineage_demo/lifecycle.py | KFP root START and terminal events. |
 
+`scripts/upload-pipeline.sh` records the selected pipeline and uploaded version in
+`build/pipeline-reference.json`. The scenario runner uses those IDs to submit runs
+from the KFP template, so each report can prove which uploaded version was executed.
+
 pipeline.py does not normally emit events itself. Its components invoke commands in the application image. Those commands emit events at runtime. root_end is the exception in implementation style: its generated component imports and calls finish_root directly.
 
 ## 2. Where the first DatasetEvent is emitted
@@ -66,10 +70,19 @@ The first RunEvent is different: it is the KFP root START event emitted after KF
 
 ## 3. What triggers the first run?
 
-After registering the asset, scenarios.py calls run_pipeline. It invokes the KFP client method create_run_from_pipeline_package with:
+After registering the asset, scenarios.py calls run_pipeline. It invokes the KFP client
+method `run_pipeline` with the uploaded pipeline and version IDs from
+`build/pipeline-reference.json`:
 
-    pipeline_file = build/pipeline.yaml
-    arguments = {asset_id: asset_id, failure_mode: failure_mode}
+    experiment_id = <OpenLineage best practices experiment>
+    pipeline_id = <uploaded pipeline ID>
+    version_id = <uploaded pipeline version ID>
+    params = {asset_id: asset_id, failure_mode: failure_mode}
+
+After KFP reports the run complete, the runner calls `get_run` and fails unless the
+returned `pipeline_version_reference` matches those same IDs. The compiled
+`build/pipeline.yaml` remains the upload input and reproducibility artifact; it is not
+submitted as an inline run spec.
 
 That explicit KFP API call triggers the first run. There is no message queue, storage notification, or automatic event subscription in this demo.
 
@@ -325,4 +338,3 @@ While stepping through, ask: which exact (namespace, name) is being emitted; whi
 - facets.py is the vocabulary layer; processing code decides when facets are attached.
 
 The key distinction is: pipeline.py decides when containers run and which values flow between them; src/lineage_demo and spark/ decide what they do and which events they emit.
-

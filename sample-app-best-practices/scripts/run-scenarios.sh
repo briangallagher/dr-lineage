@@ -8,6 +8,13 @@ test -f "$BUILD_DIR/pipeline.yaml" || {
   echo "Pipeline package missing; run deploy.sh first" >&2
   exit 1
 }
+test -f "$BUILD_DIR/pipeline-reference.json" || {
+  echo "Pipeline reference missing; run upload-pipeline.sh first" >&2
+  exit 1
+}
+
+pipeline_id="$(jq -er '.pipeline_id' "$BUILD_DIR/pipeline-reference.json")"
+pipeline_version_id="$(jq -er '.pipeline_version_id' "$BUILD_DIR/pipeline-reference.json")"
 
 mkdir -p "$STATE_DIR"
 declare -a pids=()
@@ -41,6 +48,8 @@ secret_key="$(oc get secret object-store-credentials -n "$NAMESPACE" -o jsonpath
     --marquez-url http://127.0.0.1:5000 \
     --s3-endpoint http://127.0.0.1:9000 \
     --pipeline "$BUILD_DIR/pipeline.yaml" \
+    --pipeline-id "$pipeline_id" \
+    --pipeline-version-id "$pipeline_version_id" \
     --source-v2 "$APP_ROOT/data/source-v2.csv" \
     --namespace "$NAMESPACE" \
     --output "$BUILD_DIR/scenario-results.json"

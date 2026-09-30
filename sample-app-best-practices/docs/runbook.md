@@ -127,7 +127,9 @@ The script temporarily forwards the DSPA API and authenticates with the current 
 token. It uploads the compiled pipeline without exposing the API publicly. The KFP
 resource name is the RFC 1123 value `openlineage-data-registry-best-practices`; the
 description remains human-readable. Re-running the script creates an image-tagged
-version, or reuses it when that version already exists.
+version, or reuses it when that version already exists. It writes the selected
+`pipeline_id`, `pipeline_version_id`, and compiled package hash to
+`build/pipeline-reference.json`; the scenario runner requires this file.
 
 ## 7. Run the scenario suite
 
@@ -166,8 +168,10 @@ this report rather than mistaking retained history for the current run.
 
 The local scenario runner passes the temporary OpenShift token and S3 credentials
 through stdin, so those values do not appear in process arguments or the scenario
-report. This remains a test harness for the isolated POC namespace; a product
-workflow should use managed workload identities and secret references.
+report. It submits each run by the uploaded KFP pipeline/version reference and
+re-reads the run to verify that KFP retained that reference. This remains a test
+harness for the isolated POC namespace; a product workflow should use managed
+workload identities and secret references.
 
 ## 8. Open the internal services
 

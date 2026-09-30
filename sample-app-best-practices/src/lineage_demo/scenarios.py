@@ -27,6 +27,8 @@ class RunResult:
     run_id: str
     expected_state: str
     actual_state: str
+    pipeline_id: str
+    pipeline_version_id: str
 
 
 def _kfp_client(endpoint: str, token: str, namespace: str) -> kfp.Client:
@@ -58,28 +60,46 @@ def _state(run: Any) -> str:
 def run_pipeline(
     client: kfp.Client,
     *,
-    package: str,
+    experiment_id: str,
+    pipeline_id: str,
+    pipeline_version_id: str,
     namespace: str,
     asset_id: str,
     failure_mode: str,
     scenario: str,
     timeout: int,
 ) -> RunResult:
-    submitted = client.create_run_from_pipeline_package(
-        pipeline_file=package,
-        arguments={"asset_id": asset_id, "failure_mode": failure_mode},
-        run_name=f"openlineage-{scenario}-{int(time.time())}",
-        experiment_name="OpenLineage best practices",
-        namespace=namespace,
+    submitted = client.run_pipeline(
+        experiment_id=experiment_id,
+        job_name=f"openlineage-{scenario}-{int(time.time())}",
+        params={"asset_id": asset_id, "failure_mode": failure_mode},
+        pipeline_id=pipeline_id,
+        version_id=pipeline_version_id,
         enable_caching=False,
         service_account="pipeline-runner-dspa",
     )
     completed = client.wait_for_run_completion(submitted.run_id, timeout=timeout)
+    observed = client.get_run(submitted.run_id)
+    reference = getattr(observed, "pipeline_version_reference", None)
+    observed_pipeline_id = getattr(reference, "pipeline_id", None)
+    observed_version_id = getattr(reference, "pipeline_version_id", None)
+    if (observed_pipeline_id, observed_version_id) != (pipeline_id, pipeline_version_id):
+        raise RuntimeError(
+            f"Scenario {scenario} run {submitted.run_id} is not linked to the expected "
+            f"pipeline version: observed {(observed_pipeline_id, observed_version_id)}"
+        )
     actual = str(_state(completed)).upper()
     expected = "SUCCEEDED" if failure_mode == "none" else "FAILED"
     if actual != expected:
         raise RuntimeError(f"Scenario {scenario} expected {expected}, got {actual}")
-    return RunResult(scenario, submitted.run_id, expected, actual)
+    return RunResult(
+        scenario,
+        submitted.run_id,
+        expected,
+        actual,
+        pipeline_id,
+        pipeline_version_id,
+    )
 
 
 def register_asset(registry_url: str) -> dict:
@@ -132,13 +152,19 @@ def bypass_overwrite(
 
 def execute(args: argparse.Namespace) -> dict:
     client = _kfp_client(args.kfp_endpoint, args.kfp_token, args.namespace)
+    experiment = client.create_experiment(
+        name="OpenLineage best practices",
+        namespace=args.namespace,
+    )
     asset = register_asset(args.registry_url)
     results: list[RunResult] = []
     for ordinal in (1, 2):
         results.append(
             run_pipeline(
                 client,
-                package=args.pipeline,
+                experiment_id=experiment.experiment_id,
+                pipeline_id=args.pipeline_id,
+                pipeline_version_id=args.pipeline_version_id,
                 namespace=args.namespace,
                 asset_id=asset["assetId"],
                 failure_mode="none",
@@ -167,7 +193,9 @@ def execute(args: argparse.Namespace) -> dict:
     results.append(
         run_pipeline(
             client,
-            package=args.pipeline,
+            experiment_id=experiment.experiment_id,
+            pipeline_id=args.pipeline_id,
+            pipeline_version_id=args.pipeline_version_id,
             namespace=args.namespace,
             asset_id=asset["assetId"],
             failure_mode="none",
@@ -179,7 +207,9 @@ def execute(args: argparse.Namespace) -> dict:
         results.append(
             run_pipeline(
                 client,
-                package=args.pipeline,
+                experiment_id=experiment.experiment_id,
+                pipeline_id=args.pipeline_id,
+                pipeline_version_id=args.pipeline_version_id,
                 namespace=args.namespace,
                 asset_id=asset["assetId"],
                 failure_mode=failure_mode,
@@ -207,6 +237,8 @@ def main() -> None:
     parser.add_argument("--marquez-url", required=True)
     parser.add_argument("--s3-endpoint", required=True)
     parser.add_argument("--pipeline", required=True)
+    parser.add_argument("--pipeline-id", required=True)
+    parser.add_argument("--pipeline-version-id", required=True)
     parser.add_argument("--source-v2", required=True)
     parser.add_argument("--namespace", default="ol-best-practices")
     parser.add_argument("--timeout", type=int, default=1800)
